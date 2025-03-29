@@ -33,7 +33,7 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
     }
     
     deinit {
-        cleanup()
+        cleanup() // Invalidate timer
     }
     
     func checkPermissions() {
@@ -41,51 +41,42 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
         case .authorized:
             self.audioPermissionGranted = true
         case .notDetermined:
-            AVCaptureDevice.requestAccess(for: .audio) { granted in
-                DispatchQueue.main.async {
-                    self.audioPermissionGranted = granted
-                }
-            }
+            AVCaptureDevice.requestAccess(for: .audio) { granted in DispatchQueue.main.async { self.audioPermissionGranted = granted } }
         default:
             self.audioPermissionGranted = false
         }
     }
     
     func fetchAvailableMicrophones() {
-        self.availableMicrophones = AVCaptureDevice.DiscoverySession(
-            deviceTypes: [.microphone],
-            mediaType: .audio,
-            position: .unspecified
-        ).devices
+        let allDevices = AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone], mediaType: .audio, position: .unspecified).devices
         
-        if let firstMic = availableMicrophones.first {
-            self.selectedMicrophone = firstMic
-        }
+        // Filter out system-created devices
+        self.availableMicrophones = allDevices.filter {device in !device.localizedName.contains("CADefaultDeviceAggregate") && !device.localizedName.contains("NULL") && !device.localizedName.contains("Default Audio Device") && !device.localizedName.contains("System") }
+        
+        if let firstValidMic = availableMicrophones.first { self.selectedMicrophone = firstValidMic }
     }
     
     func setupMicrophoneMonitoring() {
-        microphoneUpdateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            self?.refreshMicrophoneList()
-        }
+        microphoneUpdateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in self?.refreshMicrophoneList() }
+    }
+    
+    private func isValidMicrophone(_ device: AVCaptureDevice) -> Bool {
+        let invalidNames = ["CADefaultDeviceAggregate", "NULL", "Default Audio Device", "System"]
+        return !invalidNames.contains { device.localizedName.contains($0) }
     }
     
     func refreshMicrophoneList() {
         let currentDeviceID = selectedMicrophone?.uniqueID
-        let updatedMicrophones = AVCaptureDevice.DiscoverySession(
-            deviceTypes: [.microphone],
-            mediaType: .audio,
-            position: .unspecified
-        ).devices
+        let allDevices = AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone], mediaType: .audio, position: .unspecified ).devices
         
-        if !compareDeviceLists(oldList: availableMicrophones, newList: updatedMicrophones) {
-            self.availableMicrophones = updatedMicrophones
-            
-            if let currentID = currentDeviceID,
-               let sameDevice = updatedMicrophones.first(where: { $0.uniqueID == currentID }) {
-                self.selectedMicrophone = sameDevice
-            } else if let firstMic = updatedMicrophones.first {
-                self.selectedMicrophone = firstMic
-            }
+        self.availableMicrophones = allDevices.filter(isValidMicrophone)
+        
+        // Restore selection if still valid
+        if let currentID = currentDeviceID,
+            let sameDevice = availableMicrophones.first(where: { $0.uniqueID == currentID }) {
+            self.selectedMicrophone = sameDevice
+        } else {
+            self.selectedMicrophone = availableMicrophones.first
         }
     }
     
