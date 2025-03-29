@@ -14,10 +14,11 @@ import CoreAudio
 
 class Transcriber: NSObject {
     private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
+    private var previousTranscription = ""
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     private var whisperKit: WhisperKit?
-    private var useWhisperKit = false
+    private var useWhisperKit = true
     
     private var _transcribedText = ""
     var transcribedText: String {
@@ -96,8 +97,11 @@ class Transcriber: NSObject {
             
             recognitionTask = speechRecognizer?.recognitionTask(with: recognitionRequest) { result, error in
                 if let result = result {
+                    let newText = result.bestTranscription.formattedString
+                    let addedText = String(newText.suffix(max(0, newText.count - self.previousTranscription.count)))
                     DispatchQueue.main.async {
-                        self.transcribedText = result.bestTranscription.formattedString
+                        self.transcribedText += addedText
+                        self.previousTranscription = newText
                     }
                 }
             }
@@ -115,12 +119,10 @@ class Transcriber: NSObject {
 
 extension WhisperKit {
     static func setup() async throws -> WhisperKit {
-        // This is a placeholder implementation
         return try await WhisperKit()
     }
     
     func transcribe(_ buffer: AVAudioPCMBuffer) async throws -> TranscriptionResult {
-        // Replace with actual WhisperKit implementation
         return TranscriptionResult(text: "Sample transcription text")
     }
 }
