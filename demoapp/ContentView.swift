@@ -55,7 +55,7 @@ struct ContentView: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .foregroundColor(.white)
-                        .background(audioManager.isRecording ? Color.red : Color.green)
+                        .background(audioManager.isRecording ? AnyView(Color.red) : AnyView(Color.green))
                         .cornerRadius(8)
                         .padding()
                         
@@ -121,6 +121,7 @@ struct ContentView: View {
                             )
                             .padding()
                             .frame(maxWidth: .infinity, alignment: .leading)
+                            .typingCursor()
                             .animation(.easeInOut, value: displayText)
                         }
                         
@@ -154,7 +155,7 @@ struct ContentView: View {
                             .padding()
                         }
                     }
-                    .background(Color.white)
+                    .background(Color.black)
                 }
             }
         }
@@ -300,6 +301,33 @@ struct AudioWaveformView: View {
     }
 }
 
+struct TypingCursorModifier: ViewModifier {
+    @State private var isVisible = false
+    
+    func body(content: Content) -> some View {
+        ZStack(alignment: .trailing) {
+            content
+            Rectangle()
+                .frame(width: 2, height: 20)
+                .foregroundColor(.blue)
+                .opacity(isVisible ? 1 : 0)
+                .animation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true), value: isVisible)
+        }
+        .onAppear { isVisible = true }
+    }
+}
+
+struct TypingAnimationModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+    }
+}
+
+extension View {
+    func typingCursor() -> some View {
+        self.modifier(TypingAnimationModifier())
+    }
+}
 struct RecordingFile: Identifiable, Codable {
     var id: UUID
     var date: String
