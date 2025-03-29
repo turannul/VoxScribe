@@ -1,26 +1,10 @@
-//
-//  demoappApp.swift
-//  demoapp
-//
-//  Created by Turann_ on 29.03.2025.
-//
-
 import SwiftUI
 import AVFoundation
 import Speech
 import WhisperKit
 import CoreAudio
 
-@main
-struct MeetingTranscriberApp: App {
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-        }
-    }
-}
-
-class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBufferDelegate {  
+class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBufferDelegate {
     @Published var isRecording = false
     @Published var availableMicrophones: [AVCaptureDevice] = []
     @Published var selectedMicrophone: AVCaptureDevice?
@@ -28,12 +12,9 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
     
     private var captureSession: AVCaptureSession?
     private var audioOutput: AVCaptureAudioDataOutput?
-    private var audioFileOutput: AVCaptureMovieFileOutput?
-    private var audioRecorder: AVAudioRecorder?
     private var audioEngine: AVAudioEngine?
-    private var audioData = Data()
-    private var microphoneUpdateTimer: Timer?
     private var transcriber: Transcriber?
+    private var microphoneUpdateTimer: Timer?
     
     override init() {
         super.init()
@@ -41,6 +22,10 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
         fetchAvailableMicrophones()
         setupTranscriber()
         setupMicrophoneMonitoring()
+    }
+    
+    deinit {
+        cleanup()
     }
     
     func checkPermissions() {
@@ -57,19 +42,46 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
             self.audioPermissionGranted = false
         }
     }
-
+    
+    func fetchAvailableMicrophones() {
+        self.availableMicrophones = AVCaptureDevice.DiscoverySession(
+            deviceTypes: [.microphone], 
+            mediaType: .audio, 
+            position: .unspecified
+        ).devices
+        
+        if let firstMic = availableMicrophones.first {
+            self.selectedMicrophone = firstMic
+        }
+    }
+    
     func setupMicrophoneMonitoring() {
         microphoneUpdateTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
             self?.refreshMicrophoneList()
         }
     }
     
-    func cleanup() {
-        microphoneUpdateTimer?.invalidate()
-        microphoneUpdateTimer = nil
+    func refreshMicrophoneList() {
+        let currentDeviceID = selectedMicrophone?.uniqueID
+        
+        let updatedMicrophones = AVCaptureDevice.DiscoverySession(
+            deviceTypes: [.microphone], 
+            mediaType: .audio, 
+            position: .unspecified
+        ).devices
+        
+        if !compareDeviceLists(oldList: availableMicrophones, newList: updatedMicrophones) {
+            self.availableMicrophones = updatedMicrophones
+            
+            if let currentID = currentDeviceID, 
+               let sameDevice = updatedMicrophones.first(where: { $0.uniqueID == currentID }) {
+                self.selectedMicrophone = sameDevice
+            } else if let firstMic = updatedMicrophones.first {
+                self.selectedMicrophone = firstMic
+            }
+        }
     }
     
-    // Helper to compare device lists to detect changes
     private func compareDeviceLists(oldList: [AVCaptureDevice], newList: [AVCaptureDevice]) -> Bool {
         guard oldList.count == newList.count else { return false }
         
@@ -79,39 +91,26 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
         return oldIDs == newIDs
     }
     
-    func refreshMicrophoneList() {
-        let currentDeviceID = selectedMicrophone?.uniqueID
-        
-        // Get updated list of microphones
-        let updatedMicrophones = AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone],mediaType: .audio,position: .unspecified).devices
-        
-        // Only update if the list has actually changed
-        if !compareDeviceLists(oldList: availableMicrophones, newList: updatedMicrophones) {
-            self.availableMicrophones = updatedMicrophones
-            
-            // Try to keep the same device selected if it still exists
-            if let currentID = currentDeviceID,
-            let sameDevice = updatedMicrophones.first(where: { $0.uniqueID == currentID }) {
-                self.selectedMicrophone = sameDevice
-            } else if let firstMic = updatedMicrophones.first {
-                self.selectedMicrophone = firstMic
-            }
-        }
-    }
-
-    func fetchAvailableMicrophones() {
-        self.availableMicrophones = AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone], mediaType: .audio, position: .unspecified).devices
-        if let firstMic = availableMicrophones.first {self.selectedMicrophone = firstMic}
-    }
-    
     func setupTranscriber() {
         self.transcriber = Transcriber()
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(transcriptionDidUpdate),
+            name: NSNotification.Name("TranscriberTextChanged"),
+            object: nil
+        )
+    }
+    
+    @objc func transcriptionDidUpdate(_ notification: Notification) {
+        if let text = notification.object as? String {
+            NotificationCenter.default.post(name: Notification.Name("TranscriptionUpdated"), object: text)
+        }
     }
     
     func startRecording() {
         guard audioPermissionGranted, let selectedMic = selectedMicrophone else { return }
         
-        // Setup capture session
         let session = AVCaptureSession()
         do {
             let audioInput = try AVCaptureDeviceInput(device: selectedMic)
@@ -128,7 +127,6 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
             self.captureSession = session
             self.audioOutput = output
             
-            // Also setup AVAudioEngine for system audio capture
             setupAudioEngine()
             
             session.startRunning()
@@ -162,19 +160,18 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
         audioEngine?.inputNode.removeTap(onBus: 0)
         self.isRecording = false
         
-        // Process any remaining audio for transcription
         transcriber?.finishProcessing()
     }
     
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        // Handle microphone audio
         transcriber?.processAudio(sampleBuffer: sampleBuffer)
     }
-
-    deinit {
-        cleanup()
+    
+    func cleanup() {
+        microphoneUpdateTimer?.invalidate()
+        microphoneUpdateTimer = nil
+        NotificationCenter.default.removeObserver(self)
     }
-
 }
 
 class Transcriber: NSObject {
@@ -184,7 +181,17 @@ class Transcriber: NSObject {
     private var whisperKit: WhisperKit?
     private var useWhisperKit = true
     
-    @Published var transcribedText = ""
+    private var _transcribedText = ""
+    var transcribedText: String {
+        get { return _transcribedText }
+        set {
+            _transcribedText = newValue
+            NotificationCenter.default.post(
+                name: NSNotification.Name("TranscriberTextChanged"),
+                object: newValue
+            )
+        }
+    }
     
     override init() {
         super.init()
@@ -203,9 +210,6 @@ class Transcriber: NSObject {
     }
     
     func setupWhisperKit() {
-        // Initialize WhisperKit
-        // Note: This is a placeholder for the actual WhisperKit setup
-        // You would need to follow the WhisperKit documentation for proper initialization
         Task {
             do {
                 whisperKit = try await WhisperKit.setup()
@@ -226,24 +230,23 @@ class Transcriber: NSObject {
     }
     
     func processAudio(sampleBuffer: CMSampleBuffer) {
-        // Convert CMSampleBuffer to format needed for transcription
-        // Implementation depends on whether using WhisperKit or native Speech framework
+        // Implementation would depend on WhisperKit or Speech framework requirements
     }
     
     func processWithWhisperKit(buffer: AVAudioPCMBuffer) {
-        // This is a placeholder for WhisperKit transcription
-        // Actual implementation would follow WhisperKit documentation
         Task {
-            guard whisperKit != nil else { return }
+            guard let whisperKit = whisperKit else { return }
             
-            // Convert buffer to appropriate format for WhisperKit
-            // Then run transcription
-            
-            // Example (pseudo-code based on WhisperKit API):
-            // let result = try await whisperKit.transcribe(buffer)
-            // DispatchQueue.main.async {
-            //     self.transcribedText += result.text + " "
-            // }
+            do {
+                let result = try await whisperKit.transcribe(buffer)
+                DispatchQueue.main.async {
+                    if !result.text.isEmpty {
+                        self.transcribedText += result.text + " "
+                    }
+                }
+            } catch {
+                print("WhisperKit transcription error: \(error)")
+            }
         }
     }
     
@@ -271,7 +274,6 @@ class Transcriber: NSObject {
         recognitionTask?.cancel()
         recognitionTask = nil
     }
-
 }
 
 extension WhisperKit {
@@ -280,10 +282,19 @@ extension WhisperKit {
     }
     
     func transcribe(_ buffer: AVAudioPCMBuffer) async throws -> TranscriptionResult {
-        return TranscriptionResult(text: "Transcription placeholder")
+        return TranscriptionResult(text: "Test transcription placeholder")
     }
 }
 
 struct TranscriptionResult {
     let text: String
+}
+
+@main
+struct MeetingTranscriberApp: App {
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+        }
+    }
 }
