@@ -143,7 +143,7 @@ class Transcriber: NSObject {
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     private var whisperKit: WhisperKit?
-    private var useWhisperKit = true
+    private var WhisperKitAvailable: Bool = false
     
     private var _transcribedText = ""
     var transcribedText: String {
@@ -160,7 +160,7 @@ class Transcriber: NSObject {
     override init() {
         super.init()
         setupRecognition()
-        if useWhisperKit {setupWhisperKit()}
+        if WhisperKitAvailable {setupWhisperKit()}
     }
     
     func setupRecognition() {
@@ -181,13 +181,13 @@ class Transcriber: NSObject {
             } catch {
                 print("Failed to initialize WhisperKit: \(error)")
                 // TODO: A Error message box
-                useWhisperKit = false
+                WhisperKitAvailable = false
             }
         }
     }
     
     func processAudio(buffer: AVAudioPCMBuffer) {
-        if useWhisperKit {
+        if WhisperKitAvailable {
             processWithWhisperKit(buffer: buffer)
         } else {
             processWithSpeechRecognition(buffer: buffer)

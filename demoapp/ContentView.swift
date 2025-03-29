@@ -14,7 +14,7 @@ struct ContentView: View {
         HStack(spacing: 0) {
             VStack {
                 Text("Meeting Transcriber").font(.title).padding()
-                audioManager.audioPermissionGranted {
+                if !audioManager.audioPermissionGranted {
                     Text("Microphone access is required").foregroundColor(.red).padding()
                     Button("Request Permission") {audioManager.checkPermissions()}.buttonStyle(.borderedProminent).padding()
                 } else {
@@ -46,7 +46,7 @@ struct ContentView: View {
                             VStack(alignment: .leading) {
                                 Text(recording.date).font(.headline)
                                 Text(recording.preview).font(.subheadline).lineLimit(2)
-                            }.padding(.vertical, 4).onTapGesture {transcribedText = recording.fullText showRecordedFiles = false}
+                            }.padding(.vertical, 4).onTapGesture {transcribedText = recording.fullText; showRecordedFiles = false}
                         }
                     }
                 }.background(Color.black)
@@ -75,6 +75,7 @@ struct ContentView: View {
             if let text = notification.object as? String {self.transcribedText = text}
         }
     }
+    
     func saveTranscription() {
         #if os(macOS)
             let savePanel = NSSavePanel()
