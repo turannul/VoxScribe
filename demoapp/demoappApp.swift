@@ -33,79 +33,49 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
         case .authorized:
             self.audioPermissionGranted = true
         case .notDetermined:
-            AVCaptureDevice.requestAccess(for: .audio) { granted in
-                DispatchQueue.main.async {
-                    self.audioPermissionGranted = granted
-                }
-            }
+            AVCaptureDevice.requestAccess(for: .audio) { granted in DispatchQueue.main.async {self.audioPermissionGranted = granted} }
         default:
             self.audioPermissionGranted = false
         }
     }
     
     func fetchAvailableMicrophones() {
-        self.availableMicrophones = AVCaptureDevice.DiscoverySession(
-            deviceTypes: [.microphone], 
-            mediaType: .audio, 
-            position: .unspecified
-        ).devices
+        self.availableMicrophones = AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone], mediaType: .audio, position: .unspecified).devices
         
-        if let firstMic = availableMicrophones.first {
-            self.selectedMicrophone = firstMic
-        }
+        if let firstMic = availableMicrophones.first {self.selectedMicrophone = firstMic}
     }
     
     func setupMicrophoneMonitoring() {
-        microphoneUpdateTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
-            self?.refreshMicrophoneList()
-        }
+        microphoneUpdateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in self?.refreshMicrophoneList() }
     }
     
     func refreshMicrophoneList() {
         let currentDeviceID = selectedMicrophone?.uniqueID
-        
-        let updatedMicrophones = AVCaptureDevice.DiscoverySession(
-            deviceTypes: [.microphone], 
-            mediaType: .audio, 
-            position: .unspecified
-        ).devices
+        let updatedMicrophones = AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone], mediaType: .audio, position: .unspecified).devices
         
         if !compareDeviceLists(oldList: availableMicrophones, newList: updatedMicrophones) {
             self.availableMicrophones = updatedMicrophones
             
-            if let currentID = currentDeviceID, 
-               let sameDevice = updatedMicrophones.first(where: { $0.uniqueID == currentID }) {
-                self.selectedMicrophone = sameDevice
-            } else if let firstMic = updatedMicrophones.first {
-                self.selectedMicrophone = firstMic
-            }
+            if let currentID = currentDeviceID,
+               let sameDevice = updatedMicrophones.first(where: { $0.uniqueID == currentID }) {self.selectedMicrophone = sameDevice
+            } else if let firstMic = updatedMicrophones.first { self.selectedMicrophone = firstMic }
         }
     }
     
     private func compareDeviceLists(oldList: [AVCaptureDevice], newList: [AVCaptureDevice]) -> Bool {
         guard oldList.count == newList.count else { return false }
-        
         let oldIDs = Set(oldList.map { $0.uniqueID })
         let newIDs = Set(newList.map { $0.uniqueID })
-        
         return oldIDs == newIDs
     }
     
     func setupTranscriber() {
         self.transcriber = Transcriber()
-        
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(transcriptionDidUpdate),
-            name: NSNotification.Name("TranscriberTextChanged"),
-            object: nil
-        )
+        NotificationCenter.default.addObserver(self, selector: #selector(transcriptionDidUpdate), name: NSNotification.Name("TranscriberTextChanged"), object: nil)
     }
     
     @objc func transcriptionDidUpdate(_ notification: Notification) {
-        if let text = notification.object as? String {
-            NotificationCenter.default.post(name: Notification.Name("TranscriptionUpdated"), object: text)
-        }
+        if let text = notification.object as? String {NotificationCenter.default.post(name: Notification.Name("TranscriptionUpdated"), object: text)}
     }
     
     func startRecording() {
@@ -114,16 +84,12 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
         let session = AVCaptureSession()
         do {
             let audioInput = try AVCaptureDeviceInput(device: selectedMic)
-            if session.canAddInput(audioInput) {
-                session.addInput(audioInput)
-            }
+            if session.canAddInput(audioInput) {session.addInput(audioInput)}
             
             let output = AVCaptureAudioDataOutput()
             output.setSampleBufferDelegate(self, queue: DispatchQueue(label: "audioQueue"))
-            if session.canAddOutput(output) {
-                session.addOutput(output)
-            }
-            
+            if session.canAddOutput(output) {session.addOutput(output)}
+
             self.captureSession = session
             self.audioOutput = output
             
@@ -134,6 +100,7 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
             self.isRecording = true
         } catch {
             print("Error setting up audio capture: \(error)")
+            // TODO: A Error message box
         }
     }
     
@@ -142,15 +109,14 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
         let inputNode = engine.inputNode
         let recordingFormat = inputNode.outputFormat(forBus: 0)
         
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, time in
-            self.transcriber?.processAudio(buffer: buffer)
-        }
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, time in self.transcriber?.processAudio(buffer: buffer) }
         
         do {
             try engine.start()
             self.audioEngine = engine
         } catch {
             print("Error starting audio engine: \(error)")
+            // TODO: A Error message box
         }
     }
     
@@ -163,9 +129,7 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
         transcriber?.finishProcessing()
     }
     
-    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        transcriber?.processAudio(sampleBuffer: sampleBuffer)
-    }
+    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {transcriber?.processAudio(sampleBuffer: sampleBuffer)}
     
     func cleanup() {
         microphoneUpdateTimer?.invalidate()
@@ -196,15 +160,15 @@ class Transcriber: NSObject {
     override init() {
         super.init()
         setupRecognition()
-        if useWhisperKit {
-            setupWhisperKit()
-        }
+        if useWhisperKit {setupWhisperKit()}
     }
     
     func setupRecognition() {
+        // Native Speech Recognition
         SFSpeechRecognizer.requestAuthorization { status in
             if status != .authorized {
                 print("Speech recognition authorization denied")
+                // TODO: A Error message box
             }
         }
     }
@@ -216,6 +180,7 @@ class Transcriber: NSObject {
                 print("WhisperKit initialized successfully")
             } catch {
                 print("Failed to initialize WhisperKit: \(error)")
+                // TODO: A Error message box
                 useWhisperKit = false
             }
         }
@@ -258,13 +223,10 @@ class Transcriber: NSObject {
             
             recognitionTask = speechRecognizer?.recognitionTask(with: recognitionRequest) { result, error in
                 if let result = result {
-                    DispatchQueue.main.async {
-                        self.transcribedText = result.bestTranscription.formattedString
-                    }
+                    DispatchQueue.main.async {self.transcribedText = result.bestTranscription.formattedString}
                 }
             }
         }
-        
         recognitionRequest?.append(buffer)
     }
     
