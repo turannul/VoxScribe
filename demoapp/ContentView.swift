@@ -24,10 +24,6 @@ struct ContentView: View {
         HStack(spacing: 0) {
             // Left Control Panel
             VStack {
-                Text("Meeting Transcriber")
-                    .font(.title)
-                    .padding()
-                
                 if !audioManager.audioPermissionGranted {
                     VStack {
                         Text("Microphone access is required")
@@ -150,18 +146,54 @@ struct ContentView: View {
             
             List {
                 ForEach(savedRecordings) { recording in
-                    VStack(alignment: .leading) {
-                        Text(recording.date)
-                            .font(.headline)
-                        Text(recording.preview)
-                            .font(.subheadline)
-                            .lineLimit(2)
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text(recording.date)
+                                .font(.headline)
+                            Text(recording.preview)
+                                .font(.subheadline)
+                                .lineLimit(2)
+                        }
+                        .padding(.vertical, 4)
+                        
+                        Spacer()
+                        
+                        Button {
+                            deleteRecording(recording)
+                        } label: {
+                            Image(systemName: "trash")
+                                .foregroundColor(.red)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .opacity(isHovering(recording.id) ? 1 : 0)
+                        .onHover { hovering in
+                            hoveredRecording = hovering ? recording.id : nil
+                        }
                     }
-                    .padding(.vertical, 4)
+                    .padding(.horizontal)
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(8)
                 }
             }
         }
         .background(Color.black)
+    }
+
+    @State private var hoveredRecording: UUID? = nil
+
+    private func isHovering(_ id: UUID) -> Bool {
+        hoveredRecording == id
+    }
+
+    private func deleteRecording(_ recording: RecordingFile) {
+        savedRecordings.removeAll { $0.id == recording.id }
+        saveRecordingsToStorage()
+    }
+
+    private func saveRecordingsToStorage() {
+        if let encoded = try? JSONEncoder().encode(savedRecordings) {
+            UserDefaults.standard.set(encoded, forKey: "savedRecordings")
+        }
     }
 
     private func toggleRecording() {
@@ -255,7 +287,7 @@ struct ContentView: View {
     
     private func getSavedRecordings() -> [RecordingFile] {
         if let savedData = UserDefaults.standard.data(forKey: "savedRecordings"),
-           let recordings = try? JSONDecoder().decode([RecordingFile].self, from: savedData) {
+            let recordings = try? JSONDecoder().decode([RecordingFile].self, from: savedData) {
             return recordings
         }
         return []
