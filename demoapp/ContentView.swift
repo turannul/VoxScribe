@@ -13,128 +13,76 @@ struct ContentView: View {
     var body: some View {
         HStack(spacing: 0) {
             VStack {
-                Text("Meeting Transcriber")
-                    .font(.title)
-                    .padding()
+                Text("Meeting Transcriber").font(.title).padding()
                 
-                if !audioManager.audioPermissionGranted {
-                    Text("Microphone access is required")
-                        .foregroundColor(.red)
-                        .padding()
-                    
-                    Button("Request Permission") {audioManager.checkPermissions()}
-                    .buttonStyle(.borderedProminent)
-                    .padding()
+                audioManager.audioPermissionGranted {
+                    Text("Microphone access is required").foregroundColor(.red).padding()
+                    Button("Request Permission") {audioManager.checkPermissions()}.buttonStyle(.borderedProminent).padding()
                 } else {
-                    Picker("Select Source", selection: $audioManager.selectedMicrophone) {
-                        ForEach(audioManager.availableMicrophones, id: \.uniqueID) { device in
-                            Text(device.localizedName).tag(device as AVCaptureDevice?)
-                        }
-                    }
-                    .padding()
+                    Picker("Select Source", selection: $audioManager.selectedMicrophone) {ForEach(audioManager.availableMicrophones, id: \.uniqueID) { device in Text(device.localizedName).tag(device as AVCaptureDevice?)}}.padding()
                     
                     Button(audioManager.isRecording ? "Stop Meeting" : "Start Meeting") {
                         if audioManager.isRecording {
                             audioManager.stopRecording()
-                            if !transcribedText.isEmpty {
-                                saveCurrentRecording()
-                            }
+                            if !transcribedText.isEmpty {saveCurrentRecording()}
                         } else {
                             showRecordedFiles = false
                             transcribedText = ""
                             audioManager.startRecording()
                         }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .foregroundColor(.white)
-                    .background(audioManager.isRecording ? Color.red : Color.green)
-                    .cornerRadius(8)
-                    .padding()
+                    }.buttonStyle(.borderedProminent).foregroundColor(.white).background(audioManager.isRecording ? Color.red : Color.green).cornerRadius(8).padding()
                     
                     Button(showRecordedFiles ? "Show Live Transcription" : "Show Saved Recordings") {
                         showRecordedFiles.toggle()
                         if showRecordedFiles {
                             loadSavedRecordings()
                         }
-                    }
-                    .buttonStyle(.bordered)
-                    .padding()
+                    }.buttonStyle(.bordered).padding()
                 }
-                
                 Spacer()
-            }
-            .frame(width: 300)
-            .background(Color(.darkGray))
+            }.frame(width: 300).background(Color(.darkGray))
             
             if showRecordedFiles {
                 VStack {
-                    Text("Recorded Transcriptions")
-                        .font(.title)
-                        .padding()
+                    Text("Recorded Transcriptions").font(.title).padding()
                     
                     List {
                         ForEach(savedRecordings) { recording in
                             VStack(alignment: .leading) {
-                                Text(recording.date)
-                                    .font(.headline)
-                                Text(recording.preview)
-                                    .font(.subheadline)
-                                    .lineLimit(2)
-                            }
-                            .padding(.vertical, 4)
-                            .onTapGesture {
-                                transcribedText = recording.fullText
-                                showRecordedFiles = false
-                            }
+                                Text(recording.date).font(.headline)
+                                Text(recording.preview).font(.subheadline).lineLimit(2)
+                            }.padding(.vertical, 4).onTapGesture {transcribedText = recording.fullText showRecordedFiles = false}
                         }
                     }
                 }
                 .background(Color.black)
             } else {
                 VStack {
-                    Text("Transcription")
-                        .font(.title)
-                        .padding()
+                    Text("Transcription").font(.title).padding()
                     
                     ScrollView {
-                        Text(transcribedText.isEmpty ? "Recorded transcriptions will be here" : transcribedText)
-                            .padding()
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Text(transcribedText.isEmpty ? "Recorded transcriptions will be here" : transcribedText).padding().frame(maxWidth: .infinity, alignment: .leading)
                     }
                     
                     HStack {
                         Button("Copy") {
                             #if os(macOS)
-                            NSPasteboard.general.clearContents()
-                            NSPasteboard.general.setString(transcribedText, forType: .string)
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(transcribedText, forType: .string)
                             #else
-                            UIPasteboard.general.string = transcribedText
+                                UIPasteboard.general.string = transcribedText
                             #endif
-                        }
-                        .disabled(transcribedText.isEmpty)
-                        .buttonStyle(.bordered)
-                        .padding()
+                        }.disabled(transcribedText.isEmpty).buttonStyle(.bordered).padding()
                         
-                        Button("Clear") {transcribedText = ""}
-                        .disabled(transcribedText.isEmpty)
-                        .buttonStyle(.bordered)
-                        .padding()
-                        
-                        Button("Save") {
-                            saveTranscription()
-                        }
-                        .disabled(transcribedText.isEmpty)
-                        .buttonStyle(.bordered)
-                        .padding()
+                        Button("Clear") {transcribedText = ""}.disabled(transcribedText.isEmpty).buttonStyle(.bordered).padding()
+
+                        Button("Save") {saveTranscription()}.disabled(transcribedText.isEmpty).buttonStyle(.bordered).padding()
                     }
-                }
-                .background(Color.white)
+                }.background(Color.white)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("TranscriptionUpdated"))) { notification in
-            if let text = notification.object as? String {
-                self.transcribedText = text
-            }
+            if let text = notification.object as? String {self.transcribedText = text}
         }
     }
     
@@ -185,9 +133,7 @@ struct ContentView: View {
     
     func getSavedRecordings() -> [RecordingFile] {
         if let savedData = UserDefaults.standard.data(forKey: "savedRecordings"),
-           let recordings = try? JSONDecoder().decode([RecordingFile].self, from: savedData) {
-            return recordings
-        }
+        let recordings = try? JSONDecoder().decode([RecordingFile].self, from: savedData) {return recordings}
         return []
     }
 }
@@ -199,6 +145,4 @@ struct RecordingFile: Identifiable, Codable {
     var fullText: String
 }
 
-#Preview {
-    ContentView()
-}
+#Preview {ContentView()}
