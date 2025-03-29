@@ -16,7 +16,6 @@ struct ContentView: View {
     @StateObject private var audioManager = AudioManager()
     @State private var transcribedText = ""
     @State private var displayText = ""
-    @State private var showRecordedFiles = false
     @State private var savedRecordings: [RecordingFile] = []
     @State private var audioLevels: [CGFloat] = Array(repeating: 0, count: 30)
     @State private var animationTimer: Timer?
@@ -54,18 +53,8 @@ struct ContentView: View {
                             toggleRecording()
                         }
                         .buttonStyle(.borderedProminent)
+                        .tint(audioManager.isRecording ? .red : .green)
                         .foregroundColor(.white)
-                        .background(Color.accentColor)
-                        .cornerRadius(8)
-                        .padding()
-                        
-                        Button(showRecordedFiles ? "Show Live Transcription" : "Show Saved Recordings") {
-                            showRecordedFiles.toggle()
-                            if showRecordedFiles {
-                                loadSavedRecordings()
-                            }
-                        }
-                        .buttonStyle(.bordered)
                         .padding()
                     }
                     
@@ -75,7 +64,6 @@ struct ContentView: View {
                             .padding()
                     }
                 }
-                
                 Spacer()
             }
             .frame(width: 300)
@@ -83,97 +71,20 @@ struct ContentView: View {
             
             // Main Content Area
             Group {
-                if showRecordedFiles {
-                    VStack {
-                        Text("Recorded Transcriptions")
-                            .font(.title)
-                            .padding()
-                        
-                        List {
-                            ForEach(savedRecordings) { recording in
-                                VStack(alignment: .leading) {
-                                    Text(recording.date)
-                                        .font(.headline)
-                                    Text(recording.preview)
-                                        .font(.subheadline)
-                                        .lineLimit(2)
-                                }
-                                .padding(.vertical, 4)
-                                .onTapGesture {
-                                    transcribedText = recording.fullText
-                                    displayText = recording.fullText
-                                    showRecordedFiles = false
-                                }
-                            }
-                        }
-                    }
-                    .background(Color.black)
+                if audioManager.isRecording {
+                    liveTranscriptionView
                 } else {
-                    VStack {
-                        Text("Transcription")
-                            .font(.title)
-                            .padding()
-                        
-                        ScrollView {
-                            Text(
-                                displayText.isEmpty
-                                    ? "Start recording to begin transcription..." : displayText
-                            )
-                            .padding()
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .typingCursor()
-                            .animation(.easeInOut, value: displayText)
-                        }
-                        
-                        HStack {
-                            Button("Copy") {
-                                #if os(macOS)
-                                    NSPasteboard.general.clearContents()
-                                    NSPasteboard.general.setString(
-                                        transcribedText, forType: .string)
-                                #else
-                                    UIPasteboard.general.string = transcribedText
-                                #endif
-                            }
-                            .disabled(transcribedText.isEmpty)
-                            .buttonStyle(.bordered)
-                            .padding()
-                            
-                            Button("Clear") {
-                                transcribedText = ""
-                                displayText = ""
-                            }
-                            .disabled(transcribedText.isEmpty)
-                            .buttonStyle(.bordered)
-                            .padding()
-                            
-                            Button("Save") {
-                                saveTranscription()
-                            }
-                            .disabled(transcribedText.isEmpty)
-                            .buttonStyle(.bordered)
-                            .padding()
-                        }
-                    }
-                    .background(Color.black)
+                    recordingsListView
                 }
             }
         }
-        .onReceive(
-            NotificationCenter.default.publisher(for: Notification.Name("TranscriptionUpdated"))
-        ) { notification in
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("TranscriptionUpdated"))) { notification in
             if let text = notification.object as? String {
                 transcribedText = text
-                if audioManager.isRecording {
-                    updateDisplayText()
-                } else {
-                    displayText = text
-                }
+                updateDisplayText()
             }
         }
-        .onReceive(
-            NotificationCenter.default.publisher(for: Notification.Name("AudioLevelUpdated"))
-        ) { notification in
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("AudioLevelUpdated"))) { notification in
             if let level = notification.object as? Float {
                 let normalizedLevel = CGFloat(min(max(level, 0), 1))
                 audioLevels.removeFirst()
@@ -185,6 +96,74 @@ struct ContentView: View {
         }
     }
     
+    private var liveTranscriptionView: some View {
+        VStack {
+            Text("Live Transcription")
+                .font(.title)
+                .padding()
+            
+            ScrollView {
+                Text(displayText.isEmpty ? "Start speaking to begin transcription..." : displayText)
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .typingCursor()
+                    .animation(.easeInOut, value: displayText)
+            }
+            
+            HStack {
+                Button("Copy") {
+                    #if os(macOS)
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(transcribedText, forType: .string)
+                    #else
+                    UIPasteboard.general.string = transcribedText
+                    #endif
+                }
+                .disabled(transcribedText.isEmpty)
+                .buttonStyle(.bordered)
+                .padding()
+                
+                Button("Clear") {
+                    transcribedText = ""
+                    displayText = ""
+                }
+                .disabled(transcribedText.isEmpty)
+                .buttonStyle(.bordered)
+                .padding()
+                
+                Button("Save") {
+                    saveTranscription()
+                }
+                .disabled(transcribedText.isEmpty)
+                .buttonStyle(.bordered)
+                .padding()
+            }
+        }
+        .background(Color.black)
+    }
+    
+    private var recordingsListView: some View {
+        VStack {
+            Text("Saved Recordings")
+                .font(.title)
+                .padding()
+            
+            List {
+                ForEach(savedRecordings) { recording in
+                    VStack(alignment: .leading) {
+                        Text(recording.date)
+                            .font(.headline)
+                        Text(recording.preview)
+                            .font(.subheadline)
+                            .lineLimit(2)
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+        }
+        .background(Color.black)
+    }
+
     private func toggleRecording() {
         if audioManager.isRecording {
             audioManager.stopRecording()
@@ -194,7 +173,6 @@ struct ContentView: View {
                 loadSavedRecordings()
             }
         } else {
-            showRecordedFiles = false
             transcribedText = ""
             displayText = ""
             audioManager.startRecording()
@@ -231,23 +209,23 @@ struct ContentView: View {
     
     private func saveTranscription() {
         #if os(macOS)
-            let savePanel = NSSavePanel()
-            savePanel.allowedContentTypes = [.text]
-            savePanel.nameFieldStringValue = "Meeting Transcription.txt"
-            
-            savePanel.begin { response in
-                if response == .OK, let url = savePanel.url {
-                    do {
-                        try self.transcribedText.write(to: url, atomically: true, encoding: .utf8)
-                        self.saveCurrentRecording()
-                        self.loadSavedRecordings()
-                    } catch {
-                        print("Failed to save transcription: \(error)")
-                    }
+        let savePanel = NSSavePanel()
+        savePanel.allowedContentTypes = [.text]
+        savePanel.nameFieldStringValue = "Meeting Transcription.txt"
+        
+        savePanel.begin { response in
+            if response == .OK, let url = savePanel.url {
+                do {
+                    try self.transcribedText.write(to: url, atomically: true, encoding: .utf8)
+                    self.saveCurrentRecording()
+                    self.loadSavedRecordings()
+                } catch {
+                    print("Failed to save transcription: \(error)")
                 }
             }
+        }
         #else
-            // iOS/iPadOS implementation would use UIDocumentPickerViewController
+        // iOS/iPadOS implementation would use UIDocumentPickerViewController
         #endif
     }
     
@@ -293,9 +271,7 @@ struct AudioWaveformView: View {
                 RoundedRectangle(cornerRadius: 2)
                     .fill(Color.accentColor.opacity(0.5))
                     .frame(width: 4, height: 6 + audioLevels[index] * 54)
-                    .animation(
-                        .interactiveSpring(response: 0.15, dampingFraction: 0.5),
-                        value: audioLevels[index])
+                    .animation(.interactiveSpring(response: 0.15, dampingFraction: 0.5), value: audioLevels[index])
             }
         }
     }
@@ -317,17 +293,12 @@ struct TypingCursorModifier: ViewModifier {
     }
 }
 
-struct TypingAnimationModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        content
+extension View {
+    func typingCursor() -> some View {
+        self.modifier(TypingCursorModifier())
     }
 }
 
-extension View {
-    func typingCursor() -> some View {
-        self.modifier(TypingAnimationModifier())
-    }
-}
 struct RecordingFile: Identifiable, Codable {
     var id: UUID
     var date: String
