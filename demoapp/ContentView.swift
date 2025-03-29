@@ -50,12 +50,12 @@ struct ContentView: View {
                         }
                         .padding()
                         
-                        Button(audioManager.isRecording ? "Stop Meeting" : "Start Meeting") {
+                        Button(audioManager.isRecording ? "Stop Recording" : "Start Recording") {
                             toggleRecording()
                         }
                         .buttonStyle(.borderedProminent)
                         .foregroundColor(.white)
-                        .background(audioManager.isRecording ? AnyView(Color.red) : AnyView(Color.green))
+                        .background(Color.accentColor)
                         .cornerRadius(8)
                         .padding()
                         
@@ -117,7 +117,7 @@ struct ContentView: View {
                         ScrollView {
                             Text(
                                 displayText.isEmpty
-                                    ? "Start speaking to begin transcription..." : displayText
+                                    ? "Start recording to begin transcription..." : displayText
                             )
                             .padding()
                             .frame(maxWidth: .infinity, alignment: .leading)
