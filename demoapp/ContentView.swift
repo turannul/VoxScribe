@@ -202,8 +202,15 @@ struct ContentView: View {
     }
     
     private func startTextAnimation() {
-        animationTimer = Timer.scheduledTimer(withTimeInterval: 0.03, repeats: true) { _ in
-            updateDisplayText()
+        animationTimer?.invalidate()
+        animationTimer = Timer.scheduledTimer(withTimeInterval: 0.02, repeats: true) { _ in
+            let targetText = transcribedText
+            if displayText.count < targetText.count {
+                let newCharacter = targetText[targetText.index(targetText.startIndex, offsetBy: displayText.count)]
+                withAnimation(.linear(duration: 0.02)) {
+                    displayText.append(newCharacter)
+                }
+            }
         }
     }
     
@@ -283,7 +290,7 @@ struct AudioWaveformView: View {
         HStack(spacing: 2) {
             ForEach(0..<audioLevels.count, id: \.self) { index in
                 RoundedRectangle(cornerRadius: 2)
-                    .fill(Color.green)
+                    .fill(Color.accentColor.opacity(0.5))
                     .frame(width: 4, height: 6 + audioLevels[index] * 54)
                     .animation(
                         .interactiveSpring(response: 0.15, dampingFraction: 0.5),
