@@ -14,13 +14,11 @@ struct ContentView: View {
         HStack(spacing: 0) {
             VStack {
                 Text("Meeting Transcriber").font(.title).padding()
-                
                 audioManager.audioPermissionGranted {
                     Text("Microphone access is required").foregroundColor(.red).padding()
                     Button("Request Permission") {audioManager.checkPermissions()}.buttonStyle(.borderedProminent).padding()
                 } else {
                     Picker("Select Source", selection: $audioManager.selectedMicrophone) {ForEach(audioManager.availableMicrophones, id: \.uniqueID) { device in Text(device.localizedName).tag(device as AVCaptureDevice?)}}.padding()
-                    
                     Button(audioManager.isRecording ? "Stop Meeting" : "Start Meeting") {
                         if audioManager.isRecording {
                             audioManager.stopRecording()
@@ -31,7 +29,6 @@ struct ContentView: View {
                             audioManager.startRecording()
                         }
                     }.buttonStyle(.borderedProminent).foregroundColor(.white).background(audioManager.isRecording ? Color.red : Color.green).cornerRadius(8).padding()
-                    
                     Button(showRecordedFiles ? "Show Live Transcription" : "Show Saved Recordings") {
                         showRecordedFiles.toggle()
                         if showRecordedFiles {
@@ -41,11 +38,9 @@ struct ContentView: View {
                 }
                 Spacer()
             }.frame(width: 300).background(Color(.darkGray))
-            
             if showRecordedFiles {
                 VStack {
                     Text("Recorded Transcriptions").font(.title).padding()
-                    
                     List {
                         ForEach(savedRecordings) { recording in
                             VStack(alignment: .leading) {
@@ -54,16 +49,11 @@ struct ContentView: View {
                             }.padding(.vertical, 4).onTapGesture {transcribedText = recording.fullText showRecordedFiles = false}
                         }
                     }
-                }
-                .background(Color.black)
+                }.background(Color.black)
             } else {
                 VStack {
                     Text("Transcription").font(.title).padding()
-                    
-                    ScrollView {
-                        Text(transcribedText.isEmpty ? "Recorded transcriptions will be here" : transcribedText).padding().frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    
+                    ScrollView {Text(transcribedText.isEmpty ? "Recorded transcriptions will be here" : transcribedText).padding().frame(maxWidth: .infinity, alignment: .leading)}
                     HStack {
                         Button("Copy") {
                             #if os(macOS)
@@ -85,7 +75,6 @@ struct ContentView: View {
             if let text = notification.object as? String {self.transcribedText = text}
         }
     }
-    
     func saveTranscription() {
         #if os(macOS)
             let savePanel = NSSavePanel()
