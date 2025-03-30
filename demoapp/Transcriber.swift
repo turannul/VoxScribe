@@ -8,7 +8,6 @@
 
 import SwiftUI
 import Speech
-import CoreAudio
 
 class Transcriber: NSObject {
     private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))

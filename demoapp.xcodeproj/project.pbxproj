@@ -6,10 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		426E30AA2D98869700563ABE /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 426E30A92D98869700563ABE /* WhisperKit */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXFileReference section */
 		426E30962D98855B00563ABE /* demoapp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = demoapp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -27,7 +23,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				426E30AA2D98869700563ABE /* WhisperKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -70,7 +65,6 @@
 			);
 			name = demoapp;
 			packageProductDependencies = (
-				426E30A92D98869700563ABE /* WhisperKit */,
 			);
 			productName = demoapp;
 			productReference = 426E30962D98855B00563ABE /* demoapp.app */;
@@ -101,7 +95,6 @@
 			mainGroup = 426E308D2D98855B00563ABE;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				426E30A82D98869700563ABE /* XCRemoteSwiftPackageReference "WhisperKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 426E30972D98855B00563ABE /* Products */;
@@ -362,25 +355,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		426E30A82D98869700563ABE /* XCRemoteSwiftPackageReference "WhisperKit" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/argmaxinc/WhisperKit.git";
-			requirement = {
-				branch = main;
-				kind = branch;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		426E30A92D98869700563ABE /* WhisperKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 426E30A82D98869700563ABE /* XCRemoteSwiftPackageReference "WhisperKit" */;
-			productName = WhisperKit;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 426E308E2D98855B00563ABE /* Project object */;
 }
