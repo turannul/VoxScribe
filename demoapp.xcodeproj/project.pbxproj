@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		4204EA472D98D961003E1E16 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4204EA462D98D961003E1E16 /* WhisperKit */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		426E30962D98855B00563ABE /* demoapp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = demoapp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4204EA472D98D961003E1E16 /* WhisperKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +70,7 @@
 			);
 			name = demoapp;
 			packageProductDependencies = (
+				4204EA462D98D961003E1E16 /* WhisperKit */,
 			);
 			productName = demoapp;
 			productReference = 426E30962D98855B00563ABE /* demoapp.app */;
@@ -95,6 +101,7 @@
 			mainGroup = 426E308D2D98855B00563ABE;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				4204EA452D98D961003E1E16 /* XCRemoteSwiftPackageReference "WhisperKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 426E30972D98855B00563ABE /* Products */;
@@ -259,7 +266,6 @@
 				INFOPLIST_KEY_NSHumanReadableCopyright = "made by turannul";
 				INFOPLIST_KEY_NSLocationUsageDescription = "We use this for naming recorded audio where it recorded.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "We use microphone for recording audio how suprising?";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "We would like to convert your speect to text";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -305,7 +311,6 @@
 				INFOPLIST_KEY_NSHumanReadableCopyright = "made by turannul";
 				INFOPLIST_KEY_NSLocationUsageDescription = "We use this for naming recorded audio where it recorded.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "We use microphone for recording audio how suprising?";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "We would like to convert your speect to text";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -355,6 +360,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		4204EA452D98D961003E1E16 /* XCRemoteSwiftPackageReference "WhisperKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/argmaxinc/WhisperKit.git";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		4204EA462D98D961003E1E16 /* WhisperKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4204EA452D98D961003E1E16 /* XCRemoteSwiftPackageReference "WhisperKit" */;
+			productName = WhisperKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 426E308E2D98855B00563ABE /* Project object */;
 }
