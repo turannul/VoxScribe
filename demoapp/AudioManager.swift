@@ -126,18 +126,28 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
     func setupAudioEngine() {
         let engine = AVAudioEngine()
         let inputNode = engine.inputNode
-        let recordingFormat = inputNode.outputFormat(forBus: 0)
         
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, time in
-            self.processAudioSamples(buffer)
-            self.transcriber?.processAudio(buffer: buffer)
+        // Configure to 16kHz mono for Whisper compatibility
+        let desiredFormat = AVAudioFormat(
+            commonFormat: .pcmFormatFloat32,
+            sampleRate: 16000,
+            channels: 1,
+            interleaved: false
+        )!
+        
+        inputNode.installTap(
+            onBus: 0,
+            bufferSize: 1024,
+            format: desiredFormat
+        ) { [weak self] buffer, _ in
+            self?.transcriber?.processAudio(buffer: buffer)
         }
         
         do {
             try engine.start()
             self.audioEngine = engine
         } catch {
-            print("Error starting audio engine: \(error)")
+            print("Audio engine error: \(error)")
         }
     }
     

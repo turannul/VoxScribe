@@ -1,0 +1,171 @@
+//
+//  Transcriber.swift
+//  demoapp
+//
+//  Created by Turann_ on 30.03.2025.
+//
+
+import SwiftUI
+import AVFoundation
+import WhisperKit
+
+class Transcriber: NSObject {
+    private var previousTranscription = ""
+    private var audioChunks: [AVAudioPCMBuffer] = []
+    private var processingQueue = DispatchQueue(label: "xyz.turannul.processingQueue")
+    private var isProcessing = false
+    private var whisperKit: WhisperKit?
+    private var lastProcessingTime = Date()
+    private let processingInterval: TimeInterval = 2.0 // Process chunks every 2 seconds
+    private var shouldProcessFinal = false
+    
+    private var _transcribedText = ""
+    var transcribedText: String {
+        get { return _transcribedText }
+        set {
+            _transcribedText = newValue
+            NotificationCenter.default.post(
+                name: NSNotification.Name("TranscriberTextChanged"),
+                object: newValue
+            )
+        }
+    }
+    
+    override init() {
+        super.init()
+        setupRecognition()
+    }
+    
+    func setupRecognition() {
+        // Initialize WhisperKit
+        Task { @MainActor in
+            do {
+                whisperKit = try await WhisperKit()
+                print("WhisperKit initialized successfully")
+            } catch {
+                print("Failed to initialize WhisperKit: \(error)")
+            }
+        }
+    }
+    
+    // Directly use the PCM buffer provided by the audio engine
+    func processAudio(buffer: AVAudioPCMBuffer) {
+        // Copy the buffer reference if needed (or simply store it if WhisperKit can process it directly)
+        let bufferCopy = buffer
+        processingQueue.async { [weak self] in
+            guard let self = self else { return }
+            self.audioChunks.append(bufferCopy)
+            
+            // Check if it's time to process the accumulated audio
+            if !self.isProcessing &&
+                (Date().timeIntervalSince(self.lastProcessingTime) >= self.processingInterval || self.shouldProcessFinal) {
+                self.processAccumulatedAudio()
+            }
+        }
+    }
+    
+    // Since our microphone tap already provides AVAudioPCMBuffer, we don't need to convert from CMSampleBuffer.
+    // If you still receive CMSampleBuffers elsewhere, consider if they can be handled similarly or removed.
+    func processAudio(sampleBuffer: CMSampleBuffer) {
+        // For simplicity, if CMSampleBuffer conversion isn't required, you might simply ignore this.
+        // Alternatively, if needed, you could extract AVAudioPCMBuffer using system APIs without manual conversion.
+    }
+    
+    private func processAccumulatedAudio() {
+        guard !audioChunks.isEmpty, let _ = whisperKit, !isProcessing else { return }
+        
+        isProcessing = true
+        lastProcessingTime = Date()
+        
+        // Merge audio chunks if there are multiple
+        let chunksToProcess = audioChunks
+        audioChunks.removeAll()
+        
+        Task { @MainActor in
+            do {
+                let mergedBuffer: AVAudioPCMBuffer
+                if chunksToProcess.count > 1 {
+                    mergedBuffer = try mergeAudioBuffers(chunksToProcess)
+                } else {
+                    mergedBuffer = chunksToProcess[0]
+                }
+                
+                // Pass the raw AVAudioPCMBuffer directly to WhisperKit
+                let result = try await transcribe(mergedBuffer)
+                
+                if !result.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    let newText = self.previousTranscription + " " + result.text
+                    self.previousTranscription = newText
+                    self.transcribedText = newText.trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+                self.isProcessing = false
+            } catch {
+                print("Error during transcription: \(error)")
+                self.isProcessing = false
+            }
+        }
+    }
+    
+    private func mergeAudioBuffers(_ buffers: [AVAudioPCMBuffer]) throws -> AVAudioPCMBuffer {
+        guard let firstBuffer = buffers.first else {
+            throw NSError(domain: "Transcriber", code: 1, userInfo: [NSLocalizedDescriptionKey: "No buffers to merge"])
+        }
+        
+        let format = firstBuffer.format
+        let totalFrames = buffers.reduce(0) { $0 + $1.frameLength }
+        
+        guard let mergedBuffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: totalFrames) else {
+            throw NSError(domain: "Transcriber", code: 2, userInfo: [NSLocalizedDescriptionKey: "Failed to create merged buffer"])
+        }
+        
+        var frameOffset: UInt32 = 0
+        for buffer in buffers {
+            // Instead of copying using memcpy, we use AVAudioPCMBuffer's built-in pointers
+            for channel in 0..<Int(format.channelCount) {
+                let destination = mergedBuffer.floatChannelData?[channel].advanced(by: Int(frameOffset))
+                let source = buffer.floatChannelData?[channel]
+                // Assuming the buffers are in a compatible format, you can use vDSP or similar high-level APIs.
+                // Here, for simplicity, we'll use memcpy:
+                if let dest = destination, let src = source {
+                    memcpy(dest, src, Int(buffer.frameLength) * MemoryLayout<Float>.size)
+                }
+            }
+            frameOffset += buffer.frameLength
+        }
+        mergedBuffer.frameLength = totalFrames
+        return mergedBuffer
+    }
+    
+    // Now directly pass the buffer to WhisperKit without converting to an array.
+    func transcribe(_ buffer: AVAudioPCMBuffer) async throws -> TranscriptionResult {
+        guard let whisperKit = whisperKit else {
+            throw NSError(domain: "Transcriber", code: 3, userInfo: [NSLocalizedDescriptionKey: "WhisperKit not initialized"])
+        }
+
+        //let transcriptionResults = try await WhisperKit.transcribe(_: buffer) //145:71 Cannot convert value of type 'AVAudioPCMBuffer' to expected argument type 'WhisperKit'
+        //let transcriptionResults = try await WhisperKit.transcribe(_: buffer)
+        // Trying to converting the audio as buffer adds significant delay, and creates overhead which caused lags. 
+
+
+        if let firstResult = transcriptionResults.first {
+            return TranscriptionResult(text: firstResult.text)
+        } else {
+            return TranscriptionResult(text: "")
+        }
+    }
+    
+    func finishProcessing() {
+        shouldProcessFinal = true
+        processingQueue.async { [weak self] in
+            guard let self = self else { return }
+            if !self.audioChunks.isEmpty && !self.isProcessing {
+                self.processAccumulatedAudio()
+            }
+            self.shouldProcessFinal = false
+        }
+    }
+}
+
+struct TranscriptionResult {
+    let text: String
+}

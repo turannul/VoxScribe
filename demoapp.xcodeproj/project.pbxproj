@@ -7,7 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		4204EA472D98D961003E1E16 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4204EA462D98D961003E1E16 /* WhisperKit */; };
+		4204EA632D99E50D003E1E16 /* AudioKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4204EA622D99E50D003E1E16 /* AudioKit */; };
+		4204EA662D99E53F003E1E16 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4204EA652D99E53F003E1E16 /* WhisperKit */; };
+		4204EA682D99E53F003E1E16 /* whisperkit-cli in Frameworks */ = {isa = PBXBuildFile; productRef = 4204EA672D99E53F003E1E16 /* whisperkit-cli */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,7 +29,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				4204EA472D98D961003E1E16 /* WhisperKit in Frameworks */,
+				4204EA662D99E53F003E1E16 /* WhisperKit in Frameworks */,
+				4204EA632D99E50D003E1E16 /* AudioKit in Frameworks */,
+				4204EA682D99E53F003E1E16 /* whisperkit-cli in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -70,7 +74,9 @@
 			);
 			name = demoapp;
 			packageProductDependencies = (
-				4204EA462D98D961003E1E16 /* WhisperKit */,
+				4204EA622D99E50D003E1E16 /* AudioKit */,
+				4204EA652D99E53F003E1E16 /* WhisperKit */,
+				4204EA672D99E53F003E1E16 /* whisperkit-cli */,
 			);
 			productName = demoapp;
 			productReference = 426E30962D98855B00563ABE /* demoapp.app */;
@@ -101,7 +107,8 @@
 			mainGroup = 426E308D2D98855B00563ABE;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				4204EA452D98D961003E1E16 /* XCRemoteSwiftPackageReference "WhisperKit" */,
+				4204EA612D99E50D003E1E16 /* XCRemoteSwiftPackageReference "AudioKit" */,
+				4204EA642D99E53F003E1E16 /* XCRemoteSwiftPackageReference "WhisperKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 426E30972D98855B00563ABE /* Products */;
@@ -362,7 +369,15 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		4204EA452D98D961003E1E16 /* XCRemoteSwiftPackageReference "WhisperKit" */ = {
+		4204EA612D99E50D003E1E16 /* XCRemoteSwiftPackageReference "AudioKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/AudioKit/AudioKit";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+		4204EA642D99E53F003E1E16 /* XCRemoteSwiftPackageReference "WhisperKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/argmaxinc/WhisperKit.git";
 			requirement = {
@@ -373,10 +388,20 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		4204EA462D98D961003E1E16 /* WhisperKit */ = {
+		4204EA622D99E50D003E1E16 /* AudioKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 4204EA452D98D961003E1E16 /* XCRemoteSwiftPackageReference "WhisperKit" */;
+			package = 4204EA612D99E50D003E1E16 /* XCRemoteSwiftPackageReference "AudioKit" */;
+			productName = AudioKit;
+		};
+		4204EA652D99E53F003E1E16 /* WhisperKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4204EA642D99E53F003E1E16 /* XCRemoteSwiftPackageReference "WhisperKit" */;
 			productName = WhisperKit;
+		};
+		4204EA672D99E53F003E1E16 /* whisperkit-cli */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4204EA642D99E53F003E1E16 /* XCRemoteSwiftPackageReference "WhisperKit" */;
+			productName = "whisperkit-cli";
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
