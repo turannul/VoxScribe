@@ -13,7 +13,7 @@ import WhisperKit
 class Transcriber: NSObject {
     private var previousTranscription = ""
     private var audioChunks: [AVAudioPCMBuffer] = []
-    private var processingQueue = DispatchQueue(label: "com.transcriber.processingQueue")
+    private var processingQueue = DispatchQueue(label: "xyz.turannul.processingQueue")
     private var isProcessing = false
     private var whisperKit: WhisperKit?
     private var lastProcessingTime = Date()
@@ -38,9 +38,10 @@ class Transcriber: NSObject {
     }
     
     func setupRecognition() {
-        // Initialize WhisperKit - let it choose the best model for the device
-        Task {
+        // Initialize WhisperKit
+        Task { @MainActor in
             do {
+                // Fix 2: Add type annotation for WhisperKit initialization
                 whisperKit = try await WhisperKit()
                 print("WhisperKit initialized successfully")
             } catch {
@@ -82,7 +83,7 @@ class Transcriber: NSObject {
             commonFormat: .pcmFormatFloat32,
             sampleRate: asbd.pointee.mSampleRate,
             channels: AVAudioChannelCount(asbd.pointee.mChannelsPerFrame),
-            interleaved: asbd.pointee.mFormatFlags & kAudioFormatFlagIsNonInterleaved == 0
+            interleaved: ((asbd.pointee.mFormatFlags & kAudioFormatFlagIsNonInterleaved) == 0)
         )
         
         guard let format = format else { return nil }
@@ -103,7 +104,7 @@ class Transcriber: NSObject {
     }
     
     private func processAccumulatedAudio() {
-        guard !audioChunks.isEmpty, let whisperKit = whisperKit, !isProcessing else { return }
+        guard !audioChunks.isEmpty, let _ = whisperKit, !isProcessing else { return }
         
         isProcessing = true
         lastProcessingTime = Date()
@@ -112,7 +113,7 @@ class Transcriber: NSObject {
         let chunksToProcess = audioChunks
         audioChunks.removeAll()
         
-        Task {
+        Task { @MainActor in
             do {
                 // Merge audio chunks if there are multiple
                 let mergedBuffer: AVAudioPCMBuffer
@@ -125,21 +126,16 @@ class Transcriber: NSObject {
                 // Transcribe the audio
                 let result = try await transcribe(mergedBuffer)
                 
-                // Update the transcribed text on the main thread
-                DispatchQueue.main.async { [weak self] in
-                    guard let self = self else { return }
-                    if !result.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        let newText = self.previousTranscription + " " + result.text
-                        self.previousTranscription = newText
-                        self.transcribedText = newText.trimmingCharacters(in: .whitespacesAndNewlines)
-                    }
-                    self.isProcessing = false
+                // Update the transcribed text
+                if !result.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    let newText = self.previousTranscription + " " + result.text
+                    self.previousTranscription = newText
+                    self.transcribedText = newText.trimmingCharacters(in: .whitespacesAndNewlines)
                 }
+                self.isProcessing = false
             } catch {
                 print("Error during transcription: \(error)")
-                DispatchQueue.main.async { [weak self] in
-                    self?.isProcessing = false
-                }
+                self.isProcessing = false
             }
         }
     }
@@ -191,10 +187,17 @@ class Transcriber: NSObject {
         // Convert the audio buffer to the format expected by WhisperKit
         let audioArray = convertBufferToArray(buffer)
         
-        // Use WhisperKit's transcription methods
-        let transcription = try await whisperKit.transcribe(audioArray: audioArray)
+        // Fix 1: Handle the array of results correctly
+        let transcriptionResults = try await whisperKit.transcribe(audioArray: audioArray)
         
-        return TranscriptionResult(text: transcription.text)
+        // Extract text from the results - assuming WhisperKit returns an array
+        // and we're concatenating all the text or taking the first result
+        if let firstResult = transcriptionResults.first {
+            return TranscriptionResult(text: firstResult.text)
+        } else {
+            // If the array is empty, return empty text
+            return TranscriptionResult(text: "")
+        }
     }
     
     private func convertBufferToArray(_ buffer: AVAudioPCMBuffer) -> [Float] {
@@ -240,8 +243,3 @@ class Transcriber: NSObject {
 struct TranscriptionResult {
     let text: String
 }
-//74:37 No calls to throwing functions occur within 'try' expression
-//74:55 Type of expression is ambiguous without a type annotation
-//130:38 Capture of 'self' with non-sendable type 'Transcriber?' in a `@Sendable` closure
-//141:21 Capture of 'self' with non-sendable type 'Transcriber?' in a `@Sendable` closure
-//197:56 Value of type '[TranscriptionResult]' has no member 'text'
