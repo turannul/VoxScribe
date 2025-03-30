@@ -1,4 +1,5 @@
 import AVFoundation
+import AudioKit
 
 class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBufferDelegate {
     @Published var isRecording = false
@@ -8,7 +9,8 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
     
     private var captureSession: AVCaptureSession?
     private var audioOutput: AVCaptureAudioDataOutput?
-    private var audioEngine: AVAudioEngine?
+    // Use AudioKit’s AudioEngine in place of AVAudioEngine.
+    private var audioEngine: AudioEngine?
     private var transcriber: Transcriber?
     private var microphoneUpdateTimer: Timer?
     
@@ -21,7 +23,7 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
     }
     
     deinit {
-        cleanup() // Invalidate timer
+        cleanup() // Invalidate timer and remove observers
     }
     
     func checkPermissions() {
@@ -29,23 +31,39 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
         case .authorized:
             self.audioPermissionGranted = true
         case .notDetermined:
-            AVCaptureDevice.requestAccess(for: .audio) { granted in DispatchQueue.main.async { self.audioPermissionGranted = granted } }
+            AVCaptureDevice.requestAccess(for: .audio) { granted in
+                DispatchQueue.main.async {
+                    self.audioPermissionGranted = granted
+                }
+            }
         default:
             self.audioPermissionGranted = false
         }
     }
     
     func fetchAvailableMicrophones() {
-        let allDevices = AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone], mediaType: .audio, position: .unspecified).devices
+        let allDevices = AVCaptureDevice.DiscoverySession(
+            deviceTypes: [.microphone],
+            mediaType: .audio,
+            position: .unspecified
+        ).devices
         
-        // Filter out system-created devices
-        self.availableMicrophones = allDevices.filter {device in !device.localizedName.contains("CADefaultDeviceAggregate") && !device.localizedName.contains("NULL") && !device.localizedName.contains("Default Audio Device") && !device.localizedName.contains("System") }
+        self.availableMicrophones = allDevices.filter { device in
+            !device.localizedName.contains("CADefaultDeviceAggregate") &&
+            !device.localizedName.contains("NULL") &&
+            !device.localizedName.contains("Default Audio Device") &&
+            !device.localizedName.contains("System")
+        }
         
-        if let firstValidMic = availableMicrophones.first { self.selectedMicrophone = firstValidMic }
+        if let firstValidMic = availableMicrophones.first {
+            self.selectedMicrophone = firstValidMic
+        }
     }
     
     func setupMicrophoneMonitoring() {
-        microphoneUpdateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in self?.refreshMicrophoneList() }
+        microphoneUpdateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            self?.refreshMicrophoneList()
+        }
     }
     
     private func isValidMicrophone(_ device: AVCaptureDevice) -> Bool {
@@ -55,24 +73,21 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
     
     func refreshMicrophoneList() {
         let currentDeviceID = selectedMicrophone?.uniqueID
-        let allDevices = AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone], mediaType: .audio, position: .unspecified ).devices
+        let allDevices = AVCaptureDevice.DiscoverySession(
+            deviceTypes: [.microphone],
+            mediaType: .audio,
+            position: .unspecified
+        ).devices
         
         self.availableMicrophones = allDevices.filter(isValidMicrophone)
         
         // Restore selection if still valid
         if let currentID = currentDeviceID,
-            let sameDevice = availableMicrophones.first(where: { $0.uniqueID == currentID }) {
+           let sameDevice = availableMicrophones.first(where: { $0.uniqueID == currentID }) {
             self.selectedMicrophone = sameDevice
         } else {
             self.selectedMicrophone = availableMicrophones.first
         }
-    }
-    
-    private func compareDeviceLists(oldList: [AVCaptureDevice], newList: [AVCaptureDevice]) -> Bool {
-        guard oldList.count == newList.count else { return false }
-        let oldIDs = Set(oldList.map { $0.uniqueID })
-        let newIDs = Set(newList.map { $0.uniqueID })
-        return oldIDs == newIDs
     }
     
     func setupTranscriber() {
@@ -80,7 +95,7 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(transcriptionDidUpdate),
-            name: NSNotification.Name("TranscriberTextChanged"),
+            name: Notification.Name("TranscriptionUpdated"),
             object: nil
         )
     }
@@ -95,11 +110,12 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
     }
     
     func startRecording() {
-        guard audioPermissionGranted, let selectedMic = selectedMicrophone else { return }
+        guard audioPermissionGranted, selectedMicrophone != nil else { return }
         
+        // Use AVCaptureSession to select the microphone device for recording meeting audio.
         let session = AVCaptureSession()
         do {
-            let audioInput = try AVCaptureDeviceInput(device: selectedMic)
+            let audioInput = try AVCaptureDeviceInput(device: selectedMicrophone!)
             if session.canAddInput(audioInput) {
                 session.addInput(audioInput)
             }
@@ -113,10 +129,10 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
             self.captureSession = session
             self.audioOutput = output
             
+            // Setup AudioKit engine for processing the microphone signal.
             setupAudioEngine()
             
             session.startRunning()
-            try audioEngine?.start()
             self.isRecording = true
         } catch {
             print("Error setting up audio capture: \(error)")
@@ -124,10 +140,15 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
     }
     
     func setupAudioEngine() {
-        let engine = AVAudioEngine()
-        let inputNode = engine.inputNode
+        // Initialize AudioKit engine.
+        let engine = AudioEngine()
+        // Use the input node provided by AudioKit.
+        guard let input = engine.input else {
+            print("Audio input not available")
+            return
+        }
         
-        // Configure to 16kHz mono for Whisper compatibility
+        // Configure format to 16kHz mono for WhisperKit compatibility.
         let desiredFormat = AVAudioFormat(
             commonFormat: .pcmFormatFloat32,
             sampleRate: 16000,
@@ -135,11 +156,8 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
             interleaved: false
         )!
         
-        inputNode.installTap(
-            onBus: 0,
-            bufferSize: 1024,
-            format: desiredFormat
-        ) { [weak self] buffer, _ in
+        // Install a tap on the AudioKit input node.
+        input.avAudioNode.installTap(onBus: 0, bufferSize: 1024, format: desiredFormat) { [weak self] buffer, _ in
             self?.transcriber?.processAudio(buffer: buffer)
         }
         
@@ -151,37 +169,20 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
         }
     }
     
-    func processAudioSamples(_ buffer: AVAudioPCMBuffer) {
-        guard let channelData = buffer.floatChannelData else { return }
-        
-        let samples = stride(from: 0, to: Int(buffer.frameLength), by: buffer.stride)
-            .map { channelData[0][$0] }
-        
-        let rms = sqrt(samples.reduce(0) { $0 + pow($1, 2) } / Float(buffer.frameLength))
-        let dB = 20 * log10(rms)
-        let normalizedLevel = max(0, min(1, (dB + 60) / 60))
-        
-        DispatchQueue.main.async {
-            self.updateAudioLevels(normalizedLevel)
-        }
-    }
-    
-    func updateAudioLevels(_ level: Float) {
-        NotificationCenter.default.post(
-            name: Notification.Name("AudioLevelUpdated"),
-            object: level
-        )
-    }
-    
     func stopRecording() {
         captureSession?.stopRunning()
-        audioEngine?.stop()
-        audioEngine?.inputNode.removeTap(onBus: 0)
+        // Stop AudioKit engine and remove tap.
+        if let engine = audioEngine, let input = engine.input {
+            engine.stop()
+            input.avAudioNode.removeTap(onBus: 0)
+        }
         self.isRecording = false
         
+        // Finish any remaining transcription processing.
         transcriber?.finishProcessing()
     }
     
+    // For AVCaptureAudioDataOutputSampleBufferDelegate – forward sample buffers to transcriber.
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         transcriber?.processAudio(sampleBuffer: sampleBuffer)
     }
