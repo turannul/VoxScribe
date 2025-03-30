@@ -19,7 +19,6 @@ struct ContentView: View {
     
     var body: some View {
         HStack(spacing: 0) {
-            // Left Control Panel
             VStack {
                 if !audioManager.audioPermissionGranted {
                     VStack {
@@ -142,6 +141,10 @@ struct ContentView: View {
                 .padding()
             
             List {
+                if savedRecordings.isEmpty {
+                    Text("Nothing recorded yet.")
+                        .padding()
+                }
                 ForEach(savedRecordings) { recording in
                     HStack {
                         VStack(alignment: .leading) {
