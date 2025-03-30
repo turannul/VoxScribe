@@ -1,15 +1,5 @@
-//
-//  AudioManager.swift
-//  demoapp
-//
-//  Created by Turann_ on 30.03.2025.
-//
-
-
 import SwiftUI
 import AVFoundation
-import Speech
-import WhisperKit
 import CoreAudio
 
 class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBufferDelegate {
