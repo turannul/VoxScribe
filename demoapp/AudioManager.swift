@@ -1,5 +1,12 @@
+//
+//  AudioManager.swift
+//  demoapp
+//
+//  Created by Turann_ on 30.03.2025.
+//
+
+
 import AVFoundation
-import AudioKit
 
 class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBufferDelegate {
     @Published var isRecording = false
@@ -9,8 +16,7 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
     
     private var captureSession: AVCaptureSession?
     private var audioOutput: AVCaptureAudioDataOutput?
-    // Use AudioKit’s AudioEngine in place of AVAudioEngine.
-    private var audioEngine: AudioEngine?
+    private var audioEngine: AVAudioEngine?
     private var transcriber: Transcriber?
     private var microphoneUpdateTimer: Timer?
     
@@ -23,7 +29,7 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
     }
     
     deinit {
-        cleanup() // Invalidate timer and remove observers
+        cleanup()
     }
     
     func checkPermissions() {
@@ -31,161 +37,103 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
         case .authorized:
             self.audioPermissionGranted = true
         case .notDetermined:
-            AVCaptureDevice.requestAccess(for: .audio) { granted in
-                DispatchQueue.main.async {
-                    self.audioPermissionGranted = granted
-                }
-            }
+            AVCaptureDevice.requestAccess(for: .audio) { granted in DispatchQueue.main.async {self.audioPermissionGranted = granted} }
         default:
             self.audioPermissionGranted = false
         }
     }
     
     func fetchAvailableMicrophones() {
-        let allDevices = AVCaptureDevice.DiscoverySession(
-            deviceTypes: [.microphone],
-            mediaType: .audio,
-            position: .unspecified
-        ).devices
+        self.availableMicrophones = AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone], mediaType: .audio, position: .unspecified).devices
         
-        self.availableMicrophones = allDevices.filter { device in
-            !device.localizedName.contains("CADefaultDeviceAggregate") &&
-            !device.localizedName.contains("NULL") &&
-            !device.localizedName.contains("Default Audio Device") &&
-            !device.localizedName.contains("System")
-        }
-        
-        if let firstValidMic = availableMicrophones.first {
-            self.selectedMicrophone = firstValidMic
-        }
+        if let firstMic = availableMicrophones.first {self.selectedMicrophone = firstMic}
     }
     
     func setupMicrophoneMonitoring() {
-        microphoneUpdateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            self?.refreshMicrophoneList()
-        }
-    }
-    
-    private func isValidMicrophone(_ device: AVCaptureDevice) -> Bool {
-        let invalidNames = ["CADefaultDeviceAggregate", "NULL", "Default Audio Device", "System"]
-        return !invalidNames.contains { device.localizedName.contains($0) }
+        microphoneUpdateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in self?.refreshMicrophoneList() }
     }
     
     func refreshMicrophoneList() {
         let currentDeviceID = selectedMicrophone?.uniqueID
-        let allDevices = AVCaptureDevice.DiscoverySession(
-            deviceTypes: [.microphone],
-            mediaType: .audio,
-            position: .unspecified
-        ).devices
+        let updatedMicrophones = AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone], mediaType: .audio, position: .unspecified).devices
         
-        self.availableMicrophones = allDevices.filter(isValidMicrophone)
-        
-        // Restore selection if still valid
-        if let currentID = currentDeviceID,
-           let sameDevice = availableMicrophones.first(where: { $0.uniqueID == currentID }) {
-            self.selectedMicrophone = sameDevice
-        } else {
-            self.selectedMicrophone = availableMicrophones.first
+        if !compareDeviceLists(oldList: availableMicrophones, newList: updatedMicrophones) {
+            self.availableMicrophones = updatedMicrophones
+            
+            if let currentID = currentDeviceID,
+               let sameDevice = updatedMicrophones.first(where: { $0.uniqueID == currentID }) {self.selectedMicrophone = sameDevice
+            } else if let firstMic = updatedMicrophones.first { self.selectedMicrophone = firstMic }
         }
+    }
+    
+    private func compareDeviceLists(oldList: [AVCaptureDevice], newList: [AVCaptureDevice]) -> Bool {
+        guard oldList.count == newList.count else { return false }
+        let oldIDs = Set(oldList.map { $0.uniqueID })
+        let newIDs = Set(newList.map { $0.uniqueID })
+        return oldIDs == newIDs
     }
     
     func setupTranscriber() {
         self.transcriber = Transcriber()
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(transcriptionDidUpdate),
-            name: Notification.Name("TranscriptionUpdated"),
-            object: nil
-        )
+        NotificationCenter.default.addObserver(self, selector: #selector(transcriptionDidUpdate), name: NSNotification.Name("TranscriberTextChanged"), object: nil)
     }
     
     @objc func transcriptionDidUpdate(_ notification: Notification) {
-        if let text = notification.object as? String {
-            NotificationCenter.default.post(
-                name: Notification.Name("TranscriptionUpdated"),
-                object: text
-            )
-        }
+        if let text = notification.object as? String {NotificationCenter.default.post(name: Notification.Name("TranscriptionUpdated"), object: text)}
     }
     
     func startRecording() {
-        guard audioPermissionGranted, selectedMicrophone != nil else { return }
+        guard audioPermissionGranted, let selectedMic = selectedMicrophone else { return }
         
-        // Use AVCaptureSession to select the microphone device for recording meeting audio.
         let session = AVCaptureSession()
         do {
-            let audioInput = try AVCaptureDeviceInput(device: selectedMicrophone!)
-            if session.canAddInput(audioInput) {
-                session.addInput(audioInput)
-            }
+            let audioInput = try AVCaptureDeviceInput(device: selectedMic)
+            if session.canAddInput(audioInput) {session.addInput(audioInput)}
             
             let output = AVCaptureAudioDataOutput()
             output.setSampleBufferDelegate(self, queue: DispatchQueue(label: "audioQueue"))
-            if session.canAddOutput(output) {
-                session.addOutput(output)
-            }
-            
+            if session.canAddOutput(output) {session.addOutput(output)}
+
             self.captureSession = session
             self.audioOutput = output
             
-            // Setup AudioKit engine for processing the microphone signal.
             setupAudioEngine()
             
             session.startRunning()
+            try audioEngine?.start()
             self.isRecording = true
         } catch {
             print("Error setting up audio capture: \(error)")
+            // TODO: A Error message box
         }
     }
     
     func setupAudioEngine() {
-        // Initialize AudioKit engine.
-        let engine = AudioEngine()
-        // Use the input node provided by AudioKit.
-        guard let input = engine.input else {
-            print("Audio input not available")
-            return
-        }
+        let engine = AVAudioEngine()
+        let inputNode = engine.inputNode
+        let recordingFormat = inputNode.outputFormat(forBus: 0)
         
-        // Configure format to 16kHz mono for WhisperKit compatibility.
-        let desiredFormat = AVAudioFormat(
-            commonFormat: .pcmFormatFloat32,
-            sampleRate: 16000,
-            channels: 1,
-            interleaved: false
-        )!
-        
-        // Install a tap on the AudioKit input node.
-        input.avAudioNode.installTap(onBus: 0, bufferSize: 1024, format: desiredFormat) { [weak self] buffer, _ in
-            self?.transcriber?.processAudio(buffer: buffer)
-        }
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, time in self.transcriber?.processAudio(buffer: buffer) }
         
         do {
             try engine.start()
             self.audioEngine = engine
         } catch {
-            print("Audio engine error: \(error)")
+            print("Error starting audio engine: \(error)")
+            // TODO: A Error message box
         }
     }
     
     func stopRecording() {
         captureSession?.stopRunning()
-        // Stop AudioKit engine and remove tap.
-        if let engine = audioEngine, let input = engine.input {
-            engine.stop()
-            input.avAudioNode.removeTap(onBus: 0)
-        }
+        audioEngine?.stop()
+        audioEngine?.inputNode.removeTap(onBus: 0)
         self.isRecording = false
         
-        // Finish any remaining transcription processing.
         transcriber?.finishProcessing()
     }
     
-    // For AVCaptureAudioDataOutputSampleBufferDelegate – forward sample buffers to transcriber.
-    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        transcriber?.processAudio(sampleBuffer: sampleBuffer)
-    }
+    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {transcriber?.processAudio(sampleBuffer: sampleBuffer)}
     
     func cleanup() {
         microphoneUpdateTimer?.invalidate()
