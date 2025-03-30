@@ -7,10 +7,6 @@
 
 
 import SwiftUI
-import AVFoundation
-import Speech
-import WhisperKit
-import CoreAudio
 
 @main
 struct MeetingTranscriberApp: App {

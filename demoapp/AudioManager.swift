@@ -1,6 +1,4 @@
-import SwiftUI
 import AVFoundation
-import CoreAudio
 
 class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBufferDelegate {
     @Published var isRecording = false

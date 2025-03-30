@@ -8,9 +8,6 @@
 
 import SwiftUI
 import AVFoundation
-import Speech
-import WhisperKit
-import CoreAudio
 
 struct ContentView: View {
     @StateObject private var audioManager = AudioManager()

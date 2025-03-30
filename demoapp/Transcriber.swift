@@ -7,9 +7,7 @@
 
 
 import SwiftUI
-import AVFoundation
 import Speech
-import WhisperKit
 import CoreAudio
 
 class Transcriber: NSObject {
@@ -17,8 +15,6 @@ class Transcriber: NSObject {
     private var previousTranscription = ""
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
-    private var whisperKit: WhisperKit?
-    private var useWhisperKit = true
     
     private var _transcribedText = ""
     var transcribedText: String {
@@ -35,9 +31,6 @@ class Transcriber: NSObject {
     override init() {
         super.init()
         setupRecognition()
-        if useWhisperKit {
-            setupWhisperKit()
-        }
     }
     
     func setupRecognition() {
@@ -48,45 +41,12 @@ class Transcriber: NSObject {
         }
     }
     
-    func setupWhisperKit() {
-        Task {
-            do {
-                whisperKit = try await WhisperKit.setup()
-                print("WhisperKit initialized successfully")
-            } catch {
-                print("Failed to initialize WhisperKit: \(error)")
-                useWhisperKit = false
-            }
-        }
-    }
-    
     func processAudio(buffer: AVAudioPCMBuffer) {
-        if useWhisperKit {
-            processWithWhisperKit(buffer: buffer)
-        } else {
             processWithSpeechRecognition(buffer: buffer)
-        }
     }
     
     func processAudio(sampleBuffer: CMSampleBuffer) {
         // Implementation dependent on requirements
-    }
-    
-    func processWithWhisperKit(buffer: AVAudioPCMBuffer) {
-        Task {
-            guard let whisperKit = whisperKit else { return }
-            
-            do {
-                let result = try await whisperKit.transcribe(buffer)
-                DispatchQueue.main.async {
-                    if !result.text.isEmpty {
-                        self.transcribedText += result.text + " "
-                    }
-                }
-            } catch {
-                print("WhisperKit transcription error: \(error)")
-            }
-        }
     }
     
     func processWithSpeechRecognition(buffer: AVAudioPCMBuffer) {
@@ -116,16 +76,10 @@ class Transcriber: NSObject {
         recognitionTask = nil
     }
 }
-
-extension WhisperKit {
-    static func setup() async throws -> WhisperKit {
-        return try await WhisperKit()
-    }
     
     func transcribe(_ buffer: AVAudioPCMBuffer) async throws -> TranscriptionResult {
         return TranscriptionResult(text: "Sample transcription text")
     }
-}
 
 struct TranscriptionResult {
     let text: String
