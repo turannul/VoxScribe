@@ -7,7 +7,11 @@
 
 
 import SwiftUI
-import WhisperKit // we need to make use of this. because Apple's Speech recognition randomly stops working.
+import WhisperKit
+// we need to make use of this. because Apple's Speech recognition randomly stops working.
+// While using whisperkit I will let whisperkit to choose best model itself, which would be better for performance wise.
+// It must work with any language it gets.
+// It must work with AudioManager gives.
 
 class Transcriber: NSObject {
     private var previousTranscription = ""
