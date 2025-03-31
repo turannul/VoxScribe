@@ -9,7 +9,7 @@ import AVFoundation
 import Speech
 
 class Transcriber: NSObject {
-    private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
+    private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "tr-TR"))
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     
@@ -44,7 +44,7 @@ class Transcriber: NSObject {
     }
     
     func processAudio(sampleBuffer: CMSampleBuffer) {
-        // Implement Speech framework processing if needed
+        // TODO: Implement Speech framework processing.
     }
     
     func processWithSpeechRecognition(buffer: AVAudioPCMBuffer) {
