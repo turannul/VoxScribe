@@ -1,6 +1,6 @@
 //
 //  Transcriber.swift
-//  demoapp
+//  Transcriber
 //
 //  Created by Turann_ on 30.03.2025.
 //

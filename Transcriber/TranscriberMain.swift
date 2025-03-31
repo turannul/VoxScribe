@@ -1,6 +1,6 @@
 //
-//  MeetingTranscriberApp.swift
-//  demoapp
+//  TranscriberMain.swift
+//  Transcriber
 //
 //  Created by Turann_ on 30.03.2025.
 //

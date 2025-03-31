@@ -1,6 +1,6 @@
 //
 //  ContentView.swift
-//  demoapp
+//  Transcriber
 //
 //  Created by Turann_ on 30.03.2025.
 //
@@ -95,7 +95,7 @@ struct ContentView: View {
                 .padding()
             
             ScrollView {
-                Text(displayText.isEmpty ? "Start speaking to begin transcription..." : displayText)
+                Text(displayText.isEmpty ? "Start speaking..." : displayText)
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .typingCursor()
@@ -122,13 +122,7 @@ struct ContentView: View {
                 .disabled(transcribedText.isEmpty)
                 .buttonStyle(.bordered)
                 .padding()
-                
-                Button("Save") {
-                    saveTranscription()
-                }
-                .disabled(transcribedText.isEmpty)
-                .buttonStyle(.bordered)
-                .padding()
+
             }
         }
         .background(Color.black)
@@ -270,7 +264,7 @@ struct ContentView: View {
         let recording = RecordingFile(
             id: UUID(),
             date: dateString,
-            preview: String(transcribedText.prefix(100)) + (transcribedText.count > 100 ? "..." : ""),
+            preview: String(transcribedText.prefix(100)) + (transcribedText.count > 256 ? "..." : ""),
             fullText: transcribedText
         )
         
