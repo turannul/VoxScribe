@@ -25,7 +25,7 @@ struct RecordingCard: View {
     let onExport: () -> Void
     
     @State private var isExpanded = false
-    @State private var hoveredRecording: UUID? = nil
+    @State private var isHovered = false
     
     private var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
@@ -52,15 +52,20 @@ struct RecordingCard: View {
                 
                 Spacer()
                 
-                Menu {
-                    Button(action: onExport) {
-                        Label("Export", systemImage: "square.and.arrow.up")
+                // Show export and delete buttons only on hover
+                if isHovered {
+                    HStack(spacing: 12) {
+                        Button(action: onExport) {
+                            Image(systemName: "square.and.arrow.up")
+                                .foregroundColor(.blue)
+                        }
+                        
+                        Button(action: onDelete) {
+                            Image(systemName: "trash")
+                                .foregroundColor(.red)
+                        }
                     }
-                    Button(role: .destructive, action: onDelete) {
-                        Label("Delete", systemImage: "trash")
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
+                    .transition(.opacity)
                 }
             }
             
@@ -86,7 +91,9 @@ struct RecordingCard: View {
                 )
         )
         .onHover { hovering in
-            hoveredRecording = hovering ? recording.id : nil
+            withAnimation(.easeInOut(duration: 0.1)) {
+                isHovered = hovering
+            }
         }
     }
 }
