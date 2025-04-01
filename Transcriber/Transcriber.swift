@@ -43,9 +43,7 @@ class Transcriber: NSObject {
         processWithSpeechRecognition(buffer: buffer)
     }
     
-    func processAudio(sampleBuffer: CMSampleBuffer) {
-        // TODO: Implement Speech framework processing.
-    }
+    func processAudio(sampleBuffer: CMSampleBuffer) {} // this is somewhat crucial despite being no code in it.
     
     func processWithSpeechRecognition(buffer: AVAudioPCMBuffer) {
         if recognitionRequest == nil {
