@@ -61,7 +61,7 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
             self.availableMicrophones = updatedMicrophones
             
             if let currentID = currentDeviceID,
-               let sameDevice = updatedMicrophones.first(where: { $0.uniqueID == currentID }) {self.selectedMicrophone = sameDevice
+                let sameDevice = updatedMicrophones.first(where: { $0.uniqueID == currentID }) {self.selectedMicrophone = sameDevice
             } else if let firstMic = updatedMicrophones.first { self.selectedMicrophone = firstMic }
         }
     }
@@ -113,8 +113,10 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
         let inputNode = engine.inputNode
         let recordingFormat = inputNode.outputFormat(forBus: 0)
         
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, time in self.transcriber?.processAudio(buffer: buffer) }
-        
+       // inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, time in self.transcriber?.processAudio(buffer: buffer) }
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, time in self.processAudioSamples(buffer)
+        self.transcriber?.processAudio(buffer: buffer)
+    }
         do {
             try engine.start()
             self.audioEngine = engine
@@ -132,9 +134,29 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
         
         transcriber?.finishProcessing()
     }
+
+    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        transcriber?.processAudio(sampleBuffer: sampleBuffer)
+    }
     
-    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {transcriber?.processAudio(sampleBuffer: sampleBuffer)}
-    
+    func processAudioSamples(_ buffer: AVAudioPCMBuffer) {
+        guard let channelData = buffer.floatChannelData else { return }
+        
+        let samples = stride(from: 0, to: Int(buffer.frameLength), by: buffer.stride)
+            .map { channelData[0][$0] }
+        
+        let rms = sqrt(samples.reduce(0) { $0 + pow($1, 2) } / Float(buffer.frameLength))
+        let dB = 20 * log10(rms)
+        let normalizedLevel = max(0, min(1, (dB + 60) / 60))
+
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(
+                name: Notification.Name("AudioLevelUpdated"),
+                object: normalizedLevel
+            )
+        }
+    }
+
     func cleanup() {
         microphoneUpdateTimer?.invalidate()
         microphoneUpdateTimer = nil
