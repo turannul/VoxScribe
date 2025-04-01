@@ -37,11 +37,6 @@ struct RecordingCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Button(action: onToggleStar) {
-                    Image(systemName: recording.isStarred ? "star.fill" : "star")
-                        .foregroundColor(recording.isStarred ? .yellow : .gray)
-                }
-                
                 VStack(alignment: .leading) {
                     Text(recording.date)
                         .font(.headline)
@@ -52,9 +47,14 @@ struct RecordingCard: View {
                 
                 Spacer()
                 
-                // Show export and delete buttons only on hover
+                // All buttons only show on hover
                 if isHovered {
                     HStack(spacing: 12) {
+                        Button(action: onToggleStar) {
+                            Image(systemName: recording.isStarred ? "star.fill" : "star")
+                                .foregroundColor(recording.isStarred ? .yellow : .gray)
+                        }
+                        
                         Button(action: onExport) {
                             Image(systemName: "square.and.arrow.up")
                                 .foregroundColor(.blue)
