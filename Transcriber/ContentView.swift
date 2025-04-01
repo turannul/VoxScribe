@@ -2,13 +2,96 @@
 //  ContentView.swift
 //  Transcriber
 //
-//  Created by Turann_ on 30.03.2025.
+//  Updated with features from VoxScribe
 //
-
 
 import SwiftUI
 import AVFoundation
 
+// MARK: - Updated Data Model
+struct RecordingFile: Identifiable, Codable {
+    var id: UUID
+    var date: String
+    var preview: String
+    var fullText: String
+    var isStarred: Bool = false
+}
+
+// MARK: - Recording Card View
+struct RecordingCard: View {
+    @Binding var recording: RecordingFile
+    let onDelete: () -> Void
+    let onToggleStar: () -> Void
+    let onExport: () -> Void
+    
+    @State private var isExpanded = false
+    @State private var hoveredRecording: UUID? = nil
+    
+    private var dateFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        return formatter
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Button(action: onToggleStar) {
+                    Image(systemName: recording.isStarred ? "star.fill" : "star")
+                        .foregroundColor(recording.isStarred ? .yellow : .gray)
+                }
+                
+                VStack(alignment: .leading) {
+                    Text(recording.date)
+                        .font(.headline)
+                    Text(isExpanded ? recording.fullText : recording.preview)
+                        .font(.subheadline)
+                        .lineLimit(isExpanded ? nil : 2)
+                }
+                
+                Spacer()
+                
+                Menu {
+                    Button(action: onExport) {
+                        Label("Export", systemImage: "square.and.arrow.up")
+                    }
+                    Button(role: .destructive, action: onDelete) {
+                        Label("Delete", systemImage: "trash")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+            }
+            
+            if recording.fullText.count > 100 {
+                Button {
+                    withAnimation {
+                        isExpanded.toggle()
+                    }
+                } label: {
+                    Text(isExpanded ? "Show Less" : "Show More")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                }
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(recording.isStarred ? Color.yellow.opacity(0.1) : Color(.darkGray))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                )
+        )
+        .onHover { hovering in
+            hoveredRecording = hovering ? recording.id : nil
+        }
+    }
+}
+
+// MARK: - Main Content View
 struct ContentView: View {
     @StateObject private var audioManager = AudioManager()
     @State private var transcribedText = ""
@@ -19,37 +102,12 @@ struct ContentView: View {
     
     var body: some View {
         HStack(spacing: 0) {
+            // Control Panel
             VStack {
                 if !audioManager.audioPermissionGranted {
-                    VStack {
-                        Text("Microphone access is required")
-                            .foregroundColor(.red)
-                            .padding()
-                        Button("Request Permission") {
-                            audioManager.checkPermissions()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .padding()
-                    }
+                    permissionView
                 } else {
-                    VStack {
-                        Picker("Select Source", selection: $audioManager.selectedMicrophone) {
-                            ForEach(audioManager.availableMicrophones, id: \.uniqueID) { device in
-                                Text(device.localizedName)
-                                    .tag(device as AVCaptureDevice?)
-                            }
-                        }
-                        .padding()
-                        
-                        Button(audioManager.isRecording ? "Stop Recording" : "Start Recording") {
-                            toggleRecording()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(audioManager.isRecording ? .red : .green)
-                        .foregroundColor(.white)
-                        .padding()
-                    }
-                    
+                    recordingControls
                     if audioManager.isRecording {
                         AudioWaveformView(audioLevels: audioLevels)
                             .frame(height: 60)
@@ -61,7 +119,7 @@ struct ContentView: View {
             .frame(width: 300)
             .background(Color(.darkGray))
             
-            // Main Content Area
+            // Main Content
             Group {
                 if audioManager.isRecording {
                     liveTranscriptionView
@@ -72,19 +130,47 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("TranscriptionUpdated"))) { notification in
             if let text = notification.object as? String {
-                transcribedText = text
-                updateDisplayText()
+                updateTranscription(text: text)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("AudioLevelUpdated"))) { notification in
-            if let level = notification.object as? Float {
-                let normalizedLevel = CGFloat(min(max(level, 0), 1))
-                audioLevels.removeFirst()
-                audioLevels.append(normalizedLevel)
-            }
+            updateAudioLevel(notification: notification)
         }
         .onAppear {
             loadSavedRecordings()
+        }
+    }
+    
+    // MARK: - View Components
+    private var permissionView: some View {
+        VStack {
+            Text("Microphone access is required")
+                .foregroundColor(.red)
+                .padding()
+            Button("Request Permission") {
+                audioManager.checkPermissions()
+            }
+            .buttonStyle(.borderedProminent)
+            .padding()
+        }
+    }
+    
+    private var recordingControls: some View {
+        VStack {
+            Picker("Select Source", selection: $audioManager.selectedMicrophone) {
+                ForEach(audioManager.availableMicrophones, id: \.uniqueID) { device in
+                    Text(device.localizedName).tag(device as AVCaptureDevice?)
+                }
+            }
+            .padding()
+            
+            Button(audioManager.isRecording ? "Stop Recording" : "Start Recording") {
+                toggleRecording()
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(audioManager.isRecording ? .red : .green)
+            .foregroundColor(.white)
+            .padding()
         }
     }
     
@@ -104,26 +190,17 @@ struct ContentView: View {
             
             HStack {
                 Button("Copy") {
-                    #if os(macOS)
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(transcribedText, forType: .string)
-                    #else
-                    UIPasteboard.general.string = transcribedText
-                    #endif
+                    copyToClipboard()
                 }
                 .disabled(transcribedText.isEmpty)
-                .buttonStyle(.bordered)
-                .padding()
                 
                 Button("Clear") {
-                    transcribedText = ""
-                    displayText = ""
+                    resetTranscription()
                 }
                 .disabled(transcribedText.isEmpty)
-                .buttonStyle(.bordered)
-                .padding()
-
             }
+            .buttonStyle(.bordered)
+            .padding()
         }
         .background(Color.black)
     }
@@ -139,68 +216,57 @@ struct ContentView: View {
                     Text("Nothing recorded yet.")
                         .padding()
                 }
-                ForEach(savedRecordings) { recording in
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(recording.date)
-                                .font(.headline)
-                            Text(recording.preview)
-                                .font(.subheadline)
-                                .lineLimit(2)
-                        }
-                        .padding(.vertical, 4)
-                        
-                        Spacer()
-                        
-                        Button {
-                            deleteRecording(recording)
-                        } label: {
-                            Image(systemName: "trash")
-                                .foregroundColor(.red)
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                        .opacity(isHovering(recording.id) ? 1 : 0)
-                        .onHover { hovering in
-                            hoveredRecording = hovering ? recording.id : nil
-                        }
-                    }
-                    .padding(.horizontal)
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(8)
+                ForEach($savedRecordings) { $recording in
+                    RecordingCard(
+                        recording: $recording,
+                        onDelete: { deleteRecording(recording) },
+                        onToggleStar: { toggleStar(for: recording) },
+                        onExport: { exportRecording(recording) }
+                    )
                 }
             }
         }
         .background(Color.black)
     }
-
-    @State private var hoveredRecording: UUID? = nil
-
-    private func isHovering(_ id: UUID) -> Bool {
-        hoveredRecording == id
+    
+    // MARK: - Transcription Logic
+    private func updateTranscription(text: String) {
+        transcribedText = text
+        updateDisplayText()
     }
-
-    private func deleteRecording(_ recording: RecordingFile) {
-        savedRecordings.removeAll { $0.id == recording.id }
-        saveRecordingsToStorage()
-    }
-
-    private func saveRecordingsToStorage() {
-        if let encoded = try? JSONEncoder().encode(savedRecordings) {
-            UserDefaults.standard.set(encoded, forKey: "savedRecordings")
+    
+    private func updateDisplayText() {
+        if displayText.count < transcribedText.count {
+            let index = transcribedText.index(
+                transcribedText.startIndex, offsetBy: displayText.count)
+            displayText.append(transcribedText[index])
         }
     }
-
+    
+    private func copyToClipboard() {
+        #if os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(transcribedText, forType: .string)
+        #else
+        UIPasteboard.general.string = transcribedText
+        #endif
+    }
+    
+    private func resetTranscription() {
+        transcribedText = ""
+        displayText = ""
+    }
+    
+    // MARK: - Recording Management
     private func toggleRecording() {
         if audioManager.isRecording {
             audioManager.stopRecording()
             stopTextAnimation()
             if !transcribedText.isEmpty {
                 saveCurrentRecording()
-                loadSavedRecordings()
             }
         } else {
-            transcribedText = ""
-            displayText = ""
+            resetTranscription()
             audioManager.startRecording()
             startTextAnimation()
         }
@@ -219,75 +285,82 @@ struct ContentView: View {
         }
     }
     
-    private func updateDisplayText() {
-        if displayText.count < transcribedText.count {
-            let index = transcribedText.index(
-                transcribedText.startIndex, offsetBy: displayText.count)
-            displayText.append(transcribedText[index])
-        }
-    }
-    
     private func stopTextAnimation() {
         animationTimer?.invalidate()
         animationTimer = nil
         displayText = transcribedText
     }
     
-    private func saveTranscription() {
-        #if os(macOS)
+    // MARK: - Star & Export Functionality
+    private func toggleStar(for recording: RecordingFile) {
+        guard let index = savedRecordings.firstIndex(where: { $0.id == recording.id }) else { return }
+        savedRecordings[index].isStarred.toggle()
+        saveRecordingsToStorage()
+    }
+    
+    private func exportRecording(_ recording: RecordingFile) {
         let savePanel = NSSavePanel()
         savePanel.allowedContentTypes = [.text]
-        savePanel.nameFieldStringValue = "Meeting Transcription.txt"
+        savePanel.nameFieldStringValue = "Transcription_\(recording.date).txt"
         
         savePanel.begin { response in
             if response == .OK, let url = savePanel.url {
                 do {
-                    try self.transcribedText.write(to: url, atomically: true, encoding: .utf8)
-                    self.saveCurrentRecording()
-                    self.loadSavedRecordings()
+                    try recording.fullText.write(to: url, atomically: true, encoding: .utf8)
                 } catch {
-                    print("Failed to save transcription: \(error)")
+                    print("Export failed: \(error)")
                 }
             }
         }
-        #else
-        // iOS/iPadOS implementation would use UIDocumentPickerViewController
-        #endif
     }
     
+    // MARK: - Persistence
     private func saveCurrentRecording() {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         let dateString = formatter.string(from: Date())
         
-        let recording = RecordingFile(
+        let newRecording = RecordingFile(
             id: UUID(),
             date: dateString,
-            preview: String(transcribedText.prefix(100)) + (transcribedText.count > 256 ? "..." : ""),
+            preview: String(transcribedText.prefix(100)) + (transcribedText.count > 100 ? "..." : ""),
             fullText: transcribedText
         )
         
-        var recordings = getSavedRecordings()
-        recordings.append(recording)
-        if let encoded = try? JSONEncoder().encode(recordings) {
+        savedRecordings.insert(newRecording, at: 0)
+        saveRecordingsToStorage()
+    }
+    
+    private func deleteRecording(_ recording: RecordingFile) {
+        savedRecordings.removeAll { $0.id == recording.id }
+        saveRecordingsToStorage()
+    }
+    
+    private func saveRecordingsToStorage() {
+        if let encoded = try? JSONEncoder().encode(savedRecordings) {
             UserDefaults.standard.set(encoded, forKey: "savedRecordings")
         }
     }
     
     private func loadSavedRecordings() {
-        savedRecordings = getSavedRecordings()
+        if let savedData = UserDefaults.standard.data(forKey: "savedRecordings"),
+            let decoded = try? JSONDecoder().decode([RecordingFile].self, from: savedData) {
+            savedRecordings = decoded
+        }
     }
     
-    private func getSavedRecordings() -> [RecordingFile] {
-        if let savedData = UserDefaults.standard.data(forKey: "savedRecordings"),
-            let recordings = try? JSONDecoder().decode([RecordingFile].self, from: savedData) {
-            return recordings
+    // MARK: - Audio Visualization
+    private func updateAudioLevel(notification: Notification) {
+        if let level = notification.object as? Float {
+            let normalizedLevel = CGFloat(min(max(level, 0), 1))
+            audioLevels.removeFirst()
+            audioLevels.append(normalizedLevel)
         }
-        return []
     }
 }
 
+// MARK: - UI Components
 struct AudioWaveformView: View {
     var audioLevels: [CGFloat]
     
@@ -303,6 +376,7 @@ struct AudioWaveformView: View {
     }
 }
 
+// MARK: - Cursor Animation
 struct TypingCursorModifier: ViewModifier {
     @State private var isVisible = false
     
@@ -323,13 +397,6 @@ extension View {
     func typingCursor() -> some View {
         self.modifier(TypingCursorModifier())
     }
-}
-
-struct RecordingFile: Identifiable, Codable {
-    var id: UUID
-    var date: String
-    var preview: String
-    var fullText: String
 }
 
 #Preview {
