@@ -24,8 +24,7 @@ class LanguageManager: ObservableObject {
         
         // Sort locales by their display name
         let sortedLocales = locales.sorted {
-            $0.localizedString(forIdentifier: $0.identifier) ?? "" <
-            $1.localizedString(forIdentifier: $1.identifier) ?? ""
+            $0.localizedString(forIdentifier: $0.identifier) ?? "" < $1.localizedString(forIdentifier: $1.identifier) ?? ""
         }
         
         // Convert to our SupportedLanguage model
