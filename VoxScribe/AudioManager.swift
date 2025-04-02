@@ -19,6 +19,7 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
     private var audioEngine: AVAudioEngine?
     private var transcriber: Transcriber?
     private var microphoneUpdateTimer: Timer?
+    private var currentLanguageCode: String = Locale.current.identifier
     
     override init() {
         super.init()
@@ -74,8 +75,28 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
     }
     
     func setupTranscriber() {
-        self.transcriber = Transcriber()
+        // Create transcriber with system locale or previously selected language
+        let locale = Locale(identifier: currentLanguageCode)
+        self.transcriber = Transcriber(locale: locale)
         NotificationCenter.default.addObserver(self, selector: #selector(transcriptionDidUpdate), name: NSNotification.Name("TranscriberTextChanged"), object: nil)
+    }
+    
+    func setTranscriberLanguage(languageCode: String) {
+        currentLanguageCode = languageCode
+        
+        // If we're currently recording, we should stop and restart with the new language
+        let wasRecording = isRecording
+        if wasRecording {
+            stopRecording()
+        }
+        
+        // Update transcriber language
+        transcriber?.setLanguage(identifier: languageCode)
+        
+        // Restart recording if it was active
+        if wasRecording {
+            startRecording()
+        }
     }
     
     @objc func transcriptionDidUpdate(_ notification: Notification) {
@@ -113,10 +134,11 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
         let inputNode = engine.inputNode
         let recordingFormat = inputNode.outputFormat(forBus: 0)
         
-       // inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, time in self.transcriber?.processAudio(buffer: buffer) }
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, time in self.processAudioSamples(buffer)
-        self.transcriber?.processAudio(buffer: buffer)
-    }
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, time in 
+            self.processAudioSamples(buffer)
+            self.transcriber?.processAudio(buffer: buffer)
+        }
+        
         do {
             try engine.start()
             self.audioEngine = engine

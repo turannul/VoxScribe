@@ -7,6 +7,19 @@
 
 import SwiftUI
 import AVFoundation
+import Foundation
+
+// MARK: - Language Model
+struct SupportedLanguage: Identifiable, Hashable {
+    let id = UUID()
+    let name: String
+    let code: String
+    
+    static let systemLanguage = SupportedLanguage(
+        name: "System Language",
+        code: Locale.current.identifier
+    )
+}
 
 // MARK: - Updated Data Model
 struct RecordingFile: Identifiable, Codable {
@@ -15,6 +28,7 @@ struct RecordingFile: Identifiable, Codable {
     var preview: String
     var fullText: String
     var isStarred: Bool = false
+    var languageCode: String? // Added language code to store with recording
 }
 
 // MARK: - Recording Card View
@@ -101,6 +115,8 @@ struct RecordingCard: View {
 // MARK: - Main Content View
 struct ContentView: View {
     @StateObject private var audioManager = AudioManager()
+    @StateObject private var languageManager = LanguageManager()
+
     @State private var transcribedText = ""
     @State private var displayText = ""
     @State private var savedRecordings: [RecordingFile] = []
@@ -171,6 +187,17 @@ struct ContentView: View {
             }
             .padding()
             
+            // Language selection
+             Picker("Language", selection: $languageManager.selectedLanguage) {
+                 ForEach(languageManager.availableLanguages, id: \.id) { language in
+                     Text(language.name).tag(language)
+                 }
+             }
+             .onChange(of: languageManager.selectedLanguage) { newValue in
+                 audioManager.setTranscriberLanguage(languageCode: newValue.code)
+             }
+            .padding()
+            
             Button(audioManager.isRecording ? "Stop Recording" : "Start Recording") {
                 toggleRecording()
             }
@@ -186,6 +213,11 @@ struct ContentView: View {
             Text("Live Transcription")
                 .font(.title)
                 .padding()
+            
+            Text("Language: \(languageManager.selectedLanguage.name)")
+                .font(.subheadline)
+                .foregroundColor(.gray)
+                .padding(.bottom)
             
             ScrollView {
                 Text(displayText.isEmpty ? "Start speaking..." : displayText)
@@ -332,7 +364,8 @@ struct ContentView: View {
             id: UUID(),
             date: dateString,
             preview: String(transcribedText.prefix(100)) + (transcribedText.count > 100 ? "..." : ""),
-            fullText: transcribedText
+            fullText: transcribedText,
+            languageCode: languageManager.selectedLanguage.code
         )
         
         savedRecordings.insert(newRecording, at: 0)

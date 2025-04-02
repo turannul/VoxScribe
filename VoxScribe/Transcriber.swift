@@ -9,7 +9,7 @@ import AVFoundation
 import Speech
 
 class Transcriber: NSObject {
-    private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "tr-TR"))
+    private var speechRecognizer: SFSpeechRecognizer?
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     
@@ -25,9 +25,24 @@ class Transcriber: NSObject {
         }
     }
     
-    override init() {
+    private var currentLocale: Locale
+    
+    init(locale: Locale? = nil) {
+        self.currentLocale = locale ?? Locale.current
         super.init()
+        setupRecognizer()
         setupRecognition()
+    }
+    
+    private func setupRecognizer() {
+        speechRecognizer = SFSpeechRecognizer(locale: currentLocale)
+    }
+    
+    func setLanguage(identifier: String) {
+        let newLocale = Locale(identifier: identifier)
+        currentLocale = newLocale
+        finishProcessing()
+        setupRecognizer()
     }
     
     func setupRecognition() {
