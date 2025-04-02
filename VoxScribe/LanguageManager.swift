@@ -15,7 +15,7 @@ class LanguageManager: ObservableObject {
     init() {
         let loadedLanguages = Self.loadAvailableLanguages()
         self.availableLanguages = loadedLanguages
-        self.selectedLanguage = Self.autoDetectSystemLanguage(availableLanguages: loadedLanguages)  // Use LOCAL variable
+        self.selectedLanguage = Self.autoDetectSystemLanguage(availableLanguages: loadedLanguages)
     }
     
     private static func loadAvailableLanguages() -> [SupportedLanguage] {
@@ -33,24 +33,21 @@ class LanguageManager: ObservableObject {
     }
     
     private static func autoDetectSystemLanguage(availableLanguages: [SupportedLanguage]) -> SupportedLanguage {
-        let systemCode = Locale.current.identifier
-            .replacingOccurrences(of: "_", with: "-")
-            .lowercased()
+        let systemCode = Locale.current.identifier.replacingOccurrences(of: "_", with: "-").lowercased()
         
-        // Try full match first (e.g., "en-US")
+        // Try full match first (e.g. "en-US")
         if let match = availableLanguages.first(where: { $0.code.lowercased() == systemCode }) {
             return match
         }
         
-        // Try base language match (e.g., "en" if system is "en-GB")
+        // Try base language match (e.g. "en" if system is "en-GB")
         let baseCode = String(systemCode.prefix(2))
         if let match = availableLanguages.first(where: { $0.code.lowercased().hasPrefix(baseCode) }) {
             return match
         }
         
         // Fallback to en-US or first available
-        return availableLanguages.first { $0.code == "en-US" } ?? availableLanguages.first ?? SupportedLanguage(name: "English", code: "en-US")  // Ultimate fallback
-        // return availableLanguages.first { $0.code == "en-US" } ?? availableLanguages.first!
+        return availableLanguages.first { $0.code == "en-US" } ?? availableLanguages.first ?? SupportedLanguage(name: "English", code: "en-US")
     }
     
     func setLanguage(code: String) {
@@ -62,6 +59,6 @@ class LanguageManager: ObservableObject {
 
 struct SupportedLanguage: Identifiable, Hashable {
     let id = UUID()
-    let name: String  // Will now show full names like "English (United States)"
-    let code: String   // Locale code like "en-US"
+    let name: String  // Will show full names eg: "English (United States)"
+    let code: String   // Locale code eg:7 "en-US"
 }
