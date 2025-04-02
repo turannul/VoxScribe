@@ -10,30 +10,47 @@ import Foundation
 
 class LanguageManager: ObservableObject {
     @Published var availableLanguages: [SupportedLanguage] = []
-    @Published var selectedLanguage: SupportedLanguage = SupportedLanguage.systemLanguage
+    @Published var selectedLanguage: SupportedLanguage
     
     init() {
-        loadAvailableLanguages()
+        let loadedLanguages = Self.loadAvailableLanguages()
+        self.availableLanguages = loadedLanguages
+        self.selectedLanguage = Self.autoDetectSystemLanguage(availableLanguages: loadedLanguages)  // Use LOCAL variable
     }
     
-    func loadAvailableLanguages() {
-        var languages: [SupportedLanguage] = [SupportedLanguage.systemLanguage]
-        
-        // Get all available speech recognizers
+    private static func loadAvailableLanguages() -> [SupportedLanguage] {
         let locales = SFSpeechRecognizer.supportedLocales()
         
-        // Sort locales by their display name
-        let sortedLocales = locales.sorted {
-            $0.localizedString(forIdentifier: $0.identifier) ?? "" < $1.localizedString(forIdentifier: $1.identifier) ?? ""
+        return locales.sorted {
+            let name1 = $0.localizedString(forIdentifier: $0.identifier) ?? ""
+            let name2 = $1.localizedString(forIdentifier: $1.identifier) ?? ""
+            return name1 < name2
+        }.map { locale in
+            let code = locale.identifier
+            let name = locale.localizedString(forIdentifier: code) ?? code
+            return SupportedLanguage(name: name, code: code)
+        }
+    }
+    
+    private static func autoDetectSystemLanguage(availableLanguages: [SupportedLanguage]) -> SupportedLanguage {
+        let systemCode = Locale.current.identifier
+            .replacingOccurrences(of: "_", with: "-")
+            .lowercased()
+        
+        // Try full match first (e.g., "en-US")
+        if let match = availableLanguages.first(where: { $0.code.lowercased() == systemCode }) {
+            return match
         }
         
-        // Convert to our SupportedLanguage model
-        for locale in sortedLocales {
-            let name = locale.localizedString(forIdentifier: locale.identifier) ?? locale.identifier
-            languages.append(SupportedLanguage(name: name, code: locale.identifier))
+        // Try base language match (e.g., "en" if system is "en-GB")
+        let baseCode = String(systemCode.prefix(2))
+        if let match = availableLanguages.first(where: { $0.code.lowercased().hasPrefix(baseCode) }) {
+            return match
         }
         
-        self.availableLanguages = languages
+        // Fallback to en-US or first available
+        return availableLanguages.first { $0.code == "en-US" } ?? availableLanguages.first ?? SupportedLanguage(name: "English", code: "en-US")  // Ultimate fallback
+        // return availableLanguages.first { $0.code == "en-US" } ?? availableLanguages.first!
     }
     
     func setLanguage(code: String) {
@@ -41,4 +58,10 @@ class LanguageManager: ObservableObject {
             self.selectedLanguage = language
         }
     }
+}
+
+struct SupportedLanguage: Identifiable, Hashable {
+    let id = UUID()
+    let name: String  // Will now show full names like "English (United States)"
+    let code: String   // Locale code like "en-US"
 }

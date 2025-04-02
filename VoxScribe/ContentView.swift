@@ -9,17 +9,7 @@ import SwiftUI
 import AVFoundation
 import Foundation
 
-// MARK: - Language Model
-struct SupportedLanguage: Identifiable, Hashable {
-    let id = UUID()
-    let name: String
-    let code: String
-    
-    static let systemLanguage = SupportedLanguage(
-        name: "System Language",
-        code: Locale.current.identifier
-    )
-}
+
 
 // MARK: - Updated Data Model
 struct RecordingFile: Identifiable, Codable {
@@ -28,7 +18,7 @@ struct RecordingFile: Identifiable, Codable {
     var preview: String
     var fullText: String
     var isStarred: Bool = false
-    var languageCode: String? // Added language code to store with recording
+    var languageCode: String?
 }
 
 // MARK: - Recording Card View
