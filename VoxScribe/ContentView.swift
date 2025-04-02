@@ -199,40 +199,54 @@ struct ContentView: View {
     }
     
     private var liveTranscriptionView: some View {
-        VStack {
-            Text("Live Transcription")
-                .font(.title)
-                .padding()
-            
-            Text("Language: \(languageManager.selectedLanguage.name)")
-                .font(.subheadline)
-                .foregroundColor(.gray)
-                .padding(.bottom)
-            
-            ScrollView {
-                Text(displayText.isEmpty ? "Start speaking..." : displayText)
+            VStack {
+                Text("Live Transcription")
+                    .font(.title)
                     .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .typingCursor()
-                    .animation(.easeInOut, value: displayText)
-            }
-            
-            HStack {
-                Button("Copy") {
-                    copyToClipboard()
-                }
-                .disabled(transcribedText.isEmpty)
                 
-                Button("Clear") {
-                    resetTranscription()
+                Text("Language: \(languageManager.selectedLanguage.name)")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                    .padding(.bottom)
+                
+                ScrollView {
+                    VStack(alignment: .leading) {
+                        HStack(spacing: 0) {
+                            Text(displayText.isEmpty ? "Start speaking..." : displayText)
+                                .animation(.easeInOut, value: displayText)
+                            
+                            if audioManager.isRecording {
+                                Rectangle()
+                                    .frame(width: 2, height: 20)
+                                    .foregroundColor(.white)
+                                    .opacity(1)
+                                    .opacity(1)
+                                    .animation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true), value: true)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding()
                 }
-                .disabled(transcribedText.isEmpty)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                
+                HStack {
+                    Button("Copy") {
+                        copyToClipboard()
+                    }
+                    .disabled(transcribedText.isEmpty)
+                    
+                    Button("Clear") {
+                        resetTranscription()
+                    }
+                    .disabled(transcribedText.isEmpty)
+                }
+                .buttonStyle(.bordered)
+                .padding()
             }
-            .buttonStyle(.bordered)
-            .padding()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.black)
         }
-        .background(Color.black)
-    }
     
     private var recordingsListView: some View {
         VStack {
@@ -411,13 +425,13 @@ struct TypingCursorModifier: ViewModifier {
     @State private var isVisible = false
     
     func body(content: Content) -> some View {
-        ZStack(alignment: .trailing) {
+        HStack(spacing: 0) {
             content
             Rectangle()
-                .frame(width: 2, height: 20)
-                .foregroundColor(.blue)
+                .frame(width: 1, height: 20)
+                .foregroundColor(.white)
                 .opacity(isVisible ? 1 : 0)
-                .animation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true), value: isVisible)
+                .animation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true), value: isVisible)
         }
         .onAppear { isVisible = true }
     }
