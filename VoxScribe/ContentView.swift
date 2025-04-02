@@ -195,7 +195,7 @@ struct ContentView: View {
              }
              .onChange(of: languageManager.selectedLanguage) { newValue in
                  audioManager.setTranscriberLanguage(languageCode: newValue.code)
-             }
+             }.disabled(audioManager.isRecording)
             .padding()
             
             Button(audioManager.isRecording ? "Stop Recording" : "Start Recording") {
