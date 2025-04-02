@@ -257,6 +257,9 @@ struct ContentView: View {
             List {
                 if savedRecordings.isEmpty {
                     Text("Nothing recorded yet.")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
                         .padding()
                 }
                 ForEach($savedRecordings) { $recording in
