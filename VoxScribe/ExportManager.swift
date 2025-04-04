@@ -24,12 +24,33 @@ struct ExportManager {
                     print("Export failed: \(error)")
                     completion(false)
                 }
+            } else {
+                completion(false)
             }
         }
         #else
-        let activityVC = UIActivityViewController(activityItems: [text], applicationActivities: nil)
-        UIApplication.shared.windows.first?.rootViewController?.present(activityVC, animated: true)
-        completion(true)
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let rootViewController = windowScene.windows.first?.rootViewController {
+            
+            let activityVC = UIActivityViewController(
+                activityItems: [text],
+                applicationActivities: nil
+            )
+            
+            if let popoverController = activityVC.popoverPresentationController {
+                popoverController.sourceView = rootViewController.view
+                popoverController.sourceRect = CGRect(x: rootViewController.view.bounds.midX,
+                                                     y: rootViewController.view.bounds.midY,
+                                                     width: 0, height: 0)
+                popoverController.permittedArrowDirections = []
+            }
+            
+            rootViewController.present(activityVC, animated: true) {
+                completion(true)
+            }
+        } else {
+            completion(false)
+        }
         #endif
     }
 }

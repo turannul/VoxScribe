@@ -94,17 +94,20 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
     }
     
     func startRecording() {
-        guard audioPermissionGranted, let selectedMic: AVCaptureDevice = selectedMicrophone else { return }
+        guard audioPermissionGranted else { return }
         
-        let session: AVCaptureSession = AVCaptureSession()
+        #if os(macOS)
+        guard let selectedMic = selectedMicrophone else { return }
+        
+        let session = AVCaptureSession()
         do {
-            let audioInput: AVCaptureDeviceInput = try AVCaptureDeviceInput(device: selectedMic)
-            if session.canAddInput(audioInput) {session.addInput(audioInput)}
+            let audioInput = try AVCaptureDeviceInput(device: selectedMic)
+            if session.canAddInput(audioInput) { session.addInput(audioInput) }
             
-            let output: AVCaptureAudioDataOutput = AVCaptureAudioDataOutput()
+            let output = AVCaptureAudioDataOutput()
             output.setSampleBufferDelegate(self, queue: DispatchQueue(label: "audioQueue"))
-            if session.canAddOutput(output) {session.addOutput(output)}
-
+            if session.canAddOutput(output) { session.addOutput(output) }
+            
             self.captureSession = session
             self.audioOutput = output
             
@@ -115,12 +118,16 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
             self.isRecording = true
         } catch {
             print("Error setting up audio capture: \(error)")
-            let alert: NSAlert = NSAlert()
+            let alert = NSAlert()
             alert.alertStyle = .critical
             alert.messageText = "Error setting up audio capture"
             alert.informativeText = error.localizedDescription
             alert.runModal()
         }
+        #else
+        setupAudioEngineIOS()
+        self.isRecording = true
+        #endif
     }
     
     func setupAudioEngine() {
@@ -137,18 +144,32 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
             try engine.start()
             self.audioEngine = engine
         } catch {
+            #if os(macOS)
             let alert: NSAlert = NSAlert()
             alert.alertStyle = .critical
             alert.messageText = "Error starting audio engine"
             alert.informativeText = error.localizedDescription
             alert.runModal()
+            #endif
         }
     }
     
     func stopRecording() {
+        #if os(macOS)
         captureSession?.stopRunning()
+        #endif
+        
         audioEngine?.stop()
         audioEngine?.inputNode.removeTap(onBus: 0)
+        
+        #if os(iOS)
+        do {
+            try AVAudioSession.sharedInstance().setActive(false)
+        } catch {
+            print("Error deactivating audio session: \(error)")
+        }
+        #endif
+        
         self.isRecording = false
         transcriber?.finishProcessing()
     }
@@ -157,7 +178,6 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
         transcriber?.processAudio(sampleBuffer: sampleBuffer)
     }
     
-    // Audio monitoring for waveform animation
     func processAudioSamples(_ buffer: AVAudioPCMBuffer) {
         guard let channelData: UnsafePointer<UnsafeMutablePointer<Float>> = buffer.floatChannelData else { return }
         let samples: [Float] = stride(from: 0, to: Int(buffer.frameLength), by: buffer.stride).map { channelData[0][$0] }
@@ -172,4 +192,36 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
         microphoneUpdateTimer = nil
         NotificationCenter.default.removeObserver(self)
     }
+}
+
+// MARK: - Audio Manager iOS Implementation
+extension AudioManager {
+#if os(iOS)
+    func setupAudioEngineIOS() {
+        let engine = AVAudioEngine()
+        let inputNode = engine.inputNode
+        let recordingFormat = inputNode.outputFormat(forBus: 0)
+        
+        do {
+            let audioSession = AVAudioSession.sharedInstance()
+            try audioSession.setCategory(.record, mode: .default)
+            try audioSession.setActive(true)
+        } catch {
+            print("Failed to set up audio session: \(error)")
+            return
+        }
+        
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, time in
+            self.processAudioSamples(buffer)
+            self.transcriber?.processAudio(buffer: buffer)
+        }
+        
+        do {
+            try engine.start()
+            self.audioEngine = engine
+        } catch {
+            print("Error starting audio engine: \(error)")
+        }
+    }
+#endif
 }

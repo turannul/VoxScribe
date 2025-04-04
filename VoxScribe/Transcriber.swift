@@ -50,12 +50,13 @@ class Transcriber: NSObject {
         SFSpeechRecognizer.requestAuthorization { status in
             if status != .authorized {
                 print("Speech recognition authorization denied")
-                
+                #if os(macOS)
                 let alert = NSAlert()
                 alert.alertStyle = .warning
                 alert.messageText = "Warning: Speech recognition authorization denied"
                 alert.informativeText = "VoxScribe uses speech recognition to transcribe audio. Please enable speech recognition in system settings."
                 alert.runModal()
+                #endif
             }
         }
     }

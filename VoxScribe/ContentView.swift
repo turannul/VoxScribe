@@ -76,6 +76,7 @@ struct ContentView: View {
     @State private var animationTimer: Timer?
     
     var body: some View {
+        #if os(macOS)
         HStack(spacing: 0) {
             // Control Panel
             VStack {
@@ -102,6 +103,20 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("TranscriptionUpdated"))) { notification in if let text = notification.object as? String {updateTranscription(text: text)}}
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("AudioLevelUpdated"))) { notification in updateAudioLevel(notification: notification)}
         .onAppear {loadSavedRecordings()}
+        #else
+        iPadLayout
+            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("TranscriptionUpdated"))) { notification in
+                if let text = notification.object as? String {
+                    updateTranscription(text: text)
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("AudioLevelUpdated"))) { notification in
+                updateAudioLevel(notification: notification)
+            }
+            .onAppear {
+                loadSavedRecordings()
+            }
+        #endif
     }
     
     // MARK: - View Components
@@ -229,13 +244,14 @@ struct ContentView: View {
         saveRecordingsToStorage()
     }
     
-    private func exportRecording(_ recording: RecordingFile) {
-        let savePanel: NSSavePanel = NSSavePanel()
+    func exportRecording(_ recording: RecordingFile) {
+        #if os(macOS)
+        let savePanel = NSSavePanel()
         savePanel.allowedContentTypes = [.text]
         savePanel.nameFieldStringValue = "Transcription_\(recording.date).txt"
         
         savePanel.begin { response in
-            if response == .OK, let url: URL = savePanel.url {
+            if response == .OK, let url = savePanel.url {
                 do {
                     try recording.fullText.write(to: url, atomically: true, encoding: .utf8)
                 } catch {
@@ -243,6 +259,9 @@ struct ContentView: View {
                 }
             }
         }
+        #else
+        exportRecordingIOS(recording)
+        #endif
     }
     
     // MARK: - Persistence
@@ -311,6 +330,206 @@ struct TypingCursorModifier: ViewModifier {
             Rectangle().frame(width: 1, height: 20).foregroundColor(.white).opacity(isVisible ? 1 : 0).animation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true), value: isVisible)
         }.onAppear { isVisible = true }
     }
+}
+
+// MARK: - Recording Detail View for iPad
+struct RecordingDetailView: View {
+    @Binding var recording: RecordingFile
+    let onExport: () -> Void
+    
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    Text(recording.date)
+                        .font(.title)
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        recording.isStarred.toggle()
+                    }) {
+                        Image(systemName: recording.isStarred ? "star.fill" : "star")
+                            .foregroundColor(recording.isStarred ? .yellow : .gray)
+                    }
+                    
+                    Button(action: onExport) {
+                        Image(systemName: "square.and.arrow.up")
+                            .foregroundColor(.blue)
+                    }
+                }
+                .padding()
+                
+                Divider()
+                
+                Text(recording.fullText)
+                    .font(.body)
+                    .padding()
+            }
+            .padding()
+        }
+        .background(Color.black)
+        .navigationTitle("Transcription")
+    }
+}
+
+// MARK: - iOS/iPadOS ContentView Adaptation
+extension ContentView {
+    #if os(iOS)
+    private var recordingControlsIOS: some View {
+        VStack {
+            Text("Input: \(audioManager.selectedMicrophone?.localizedName ?? "Default Microphone")").foregroundColor(.gray).padding()
+            Picker("Language", selection: $languageManager.selectedLanguage) {ForEach(languageManager.availableLanguages, id: \.id) { language in Text(language.name).tag(language) }}
+            .pickerStyle(MenuPickerStyle())
+            .onChange(of: languageManager.selectedLanguage) { newValue in audioManager.setTranscriberLanguage(languageCode: newValue.code) }
+            .disabled(audioManager.isRecording)
+            .padding()
+            
+            Button(audioManager.isRecording ? "Stop Recording" : "Start Recording") { toggleRecording() }
+            .buttonStyle(.borderedProminent)
+            .tint(audioManager.isRecording ? .red : .green)
+            .foregroundColor(.white)
+            .padding()
+        }
+    }
+    
+    private var iPadLayout: some View {
+        NavigationView {
+            VStack {
+                if !audioManager.audioPermissionGranted {
+                    permissionViewIOS
+                } else {
+                    recordingControlsIOS
+                    if audioManager.isRecording {
+                        AudioWaveformView(audioLevels: audioLevels)
+                            .frame(height: 60)
+                            .padding()
+                    }
+                }
+                Spacer()
+                
+                if !audioManager.isRecording {
+                    List {
+                        ForEach($savedRecordings) { $recording in
+                            NavigationLink(destination: RecordingDetailView(recording: $recording, onExport: { exportRecording(recording) })) {
+                                Text(recording.date)
+                                    .font(.headline)
+                            }
+                        }
+                        .onDelete(perform: deleteRecordings)
+                    }
+                    .listStyle(SidebarListStyle())
+                }
+            }
+            .frame(width: 300)
+            .background(Color(.darkGray))
+            
+            Group {
+                if audioManager.isRecording {
+                    liveTranscriptionViewIOS
+                } else if let firstRecording = savedRecordings.first {
+                    RecordingDetailView(
+                        recording: .constant(firstRecording),
+                        onExport: { exportRecording(firstRecording) }
+                    )
+                } else {
+                    Text("Select a recording or start a new one")
+                        .foregroundColor(.gray)
+                }
+            }
+        }
+    }
+    
+    private var permissionViewIOS: some View {
+        VStack {
+            Text("Microphone access is required")
+                .foregroundColor(.red)
+                .padding()
+            
+            Button("Request Permission") {
+                audioManager.checkPermissions()
+            }
+            .buttonStyle(.borderedProminent)
+            .padding()
+        }
+    }
+    
+    private var liveTranscriptionViewIOS: some View {
+        VStack {
+            Text("Live Transcription")
+                .font(.title)
+                .padding()
+            
+            Text("Language: \(languageManager.selectedLanguage.name)")
+                .font(.subheadline)
+                .foregroundColor(.gray)
+                .padding(.bottom)
+            
+            ScrollView {
+                VStack(alignment: .leading) {
+                    HStack(spacing: 0) {
+                        Text(displayText.isEmpty ? "Start speaking..." : displayText)
+                            .animation(.easeInOut, value: displayText)
+                        
+                        // Cursor animation
+                        if audioManager.isRecording {
+                            Rectangle()
+                                .frame(width: 2, height: 20)
+                                .foregroundColor(.white)
+                                .opacity(1)
+                                .animation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true), value: true)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .padding()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            
+            HStack {
+                Button("Copy") {
+                    copyToClipboard()
+                }
+                .disabled(transcribedText.isEmpty)
+                
+                Button("Save") {
+                    audioManager.stopRecording()
+                    stopTextAnimation()
+                    if !transcribedText.isEmpty {
+                        saveCurrentRecording()
+                    }
+                }
+                .disabled(transcribedText.isEmpty)
+                
+                Button("Clear") {
+                    resetTranscription()
+                }
+                .disabled(transcribedText.isEmpty)
+            }
+            .buttonStyle(.bordered)
+            .padding()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.black)
+    }
+    
+    private func deleteRecordings(at offsets: IndexSet) {
+        savedRecordings.remove(atOffsets: offsets)
+        saveRecordingsToStorage()
+    }
+    
+    private func exportRecordingIOS(_ recording: RecordingFile) {
+        let fileName = "Transcription_\(recording.date).txt"
+        let activityVC = UIActivityViewController(
+            activityItems: [recording.fullText],
+            applicationActivities: nil
+        )
+        
+        let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene
+        let window = windowScene?.windows.first
+        window?.rootViewController?.present(activityVC, animated: true)
+    }
+    #endif
 }
 
 extension View {func typingCursor() -> some View {self.modifier(TypingCursorModifier())}}
