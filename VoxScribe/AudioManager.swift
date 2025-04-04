@@ -126,7 +126,6 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
         }
         #else
         setupAudioEngineIOS()
-        self.isRecording = true
         #endif
     }
     
@@ -199,28 +198,45 @@ extension AudioManager {
 #if os(iOS)
     func setupAudioEngineIOS() {
         let engine = AVAudioEngine()
-        let inputNode = engine.inputNode
-        let recordingFormat = inputNode.outputFormat(forBus: 0)
         
         do {
             let audioSession = AVAudioSession.sharedInstance()
-            try audioSession.setCategory(.record, mode: .default)
-            try audioSession.setActive(true)
-        } catch {
-            print("Failed to set up audio session: \(error)")
-            return
-        }
-        
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, time in
-            self.processAudioSamples(buffer)
-            self.transcriber?.processAudio(buffer: buffer)
-        }
-        
-        do {
+            try audioSession.setCategory(.record, mode: .measurement, options: .duckOthers)
+            try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+            
+            let inputNode = engine.inputNode
+            let recordingFormat = inputNode.outputFormat(forBus: 0)
+            
+            inputNode.installTap(onBus: 0, bufferSize: 4096, format: recordingFormat) { buffer, time in
+                self.processAudioSamples(buffer)
+                self.transcriber?.processAudio(buffer: buffer)
+            }
+            
+            engine.prepare()
             try engine.start()
             self.audioEngine = engine
+            
+            // Set isRecording flag after successful setup
+            self.isRecording = true
         } catch {
-            print("Error starting audio engine: \(error)")
+            print("Error setting up audio engine: \(error.localizedDescription)")
+            #if os(iOS)
+            // Show an alert on iOS
+            DispatchQueue.main.async {
+                let alertController = UIAlertController(
+                    title: "Audio Error",
+                    message: "Failed to start recording: \(error.localizedDescription)",
+                    preferredStyle: .alert
+                )
+                alertController.addAction(UIAlertAction(title: "OK", style: .default))
+                
+                // Get the key window to present the alert
+                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                    let window = windowScene.windows.first {
+                    window.rootViewController?.present(alertController, animated: true)
+                }
+            }
+            #endif
         }
     }
 #endif

@@ -36,7 +36,7 @@ struct ExportManager {
                 activityItems: [text],
                 applicationActivities: nil
             )
-            
+
             if let popoverController = activityVC.popoverPresentationController {
                 popoverController.sourceView = rootViewController.view
                 popoverController.sourceRect = CGRect(x: rootViewController.view.bounds.midX,
