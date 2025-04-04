@@ -2,6 +2,7 @@
 //  ContentView.swift
 //  Transcriber
 //
+//  Created by Turann_ on 30.03.2025.
 //  Updated with features from VoxScribe
 //
 
