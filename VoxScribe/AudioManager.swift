@@ -1,18 +1,19 @@
 //
 //  AudioManager.swift
-//  Transcriber
+//  VoxScribe
 //
 //  Created by Turann_ on 30.03.2025.
 //
 
 
 import AVFoundation
+import SwiftUI
 
 class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBufferDelegate {
-    @Published var isRecording = false
+    @Published var isRecording: Bool = false
     @Published var availableMicrophones: [AVCaptureDevice] = []
     @Published var selectedMicrophone: AVCaptureDevice?
-    @Published var audioPermissionGranted = false
+    @Published var audioPermissionGranted: Bool = false
     
     private var captureSession: AVCaptureSession?
     private var audioOutput: AVCaptureAudioDataOutput?
@@ -46,8 +47,7 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
     
     func fetchAvailableMicrophones() {
         self.availableMicrophones = AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone], mediaType: .audio, position: .unspecified).devices
-        
-        if let firstMic = availableMicrophones.first {self.selectedMicrophone = firstMic}
+        if let firstMic: AVCaptureDevice = availableMicrophones.first {self.selectedMicrophone = firstMic}
     }
     
     func setupMicrophoneMonitoring() {
@@ -55,63 +55,53 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
     }
     
     func refreshMicrophoneList() {
-        let currentDeviceID = selectedMicrophone?.uniqueID
-        let updatedMicrophones = AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone], mediaType: .audio, position: .unspecified).devices
+        let currentDeviceID: String? = selectedMicrophone?.uniqueID
+        let updatedMicrophones: [AVCaptureDevice] = AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone], mediaType: .audio, position: .unspecified).devices
         
         if !compareDeviceLists(oldList: availableMicrophones, newList: updatedMicrophones) {
             self.availableMicrophones = updatedMicrophones
             
-            if let currentID = currentDeviceID,
-                let sameDevice = updatedMicrophones.first(where: { $0.uniqueID == currentID }) {self.selectedMicrophone = sameDevice
-            } else if let firstMic = updatedMicrophones.first { self.selectedMicrophone = firstMic }
+            if let currentID: String = currentDeviceID,
+                let sameDevice: AVCaptureDevice = updatedMicrophones.first(where: { $0.uniqueID == currentID }) {self.selectedMicrophone = sameDevice
+            } else if 
+                let firstMic: AVCaptureDevice = updatedMicrophones.first { self.selectedMicrophone = firstMic }
         }
     }
     
     private func compareDeviceLists(oldList: [AVCaptureDevice], newList: [AVCaptureDevice]) -> Bool {
         guard oldList.count == newList.count else { return false }
-        let oldIDs = Set(oldList.map { $0.uniqueID })
-        let newIDs = Set(newList.map { $0.uniqueID })
+        let oldIDs: Set<String> = Set(oldList.map { $0.uniqueID })
+        let newIDs: Set<String> = Set(newList.map { $0.uniqueID })
         return oldIDs == newIDs
     }
     
     func setupTranscriber() {
-        // Create transcriber with system locale or previously selected language
-        let locale = Locale(identifier: currentLanguageCode)
+        let locale: Locale = Locale(identifier: currentLanguageCode)
         self.transcriber = Transcriber(locale: locale)
         NotificationCenter.default.addObserver(self, selector: #selector(transcriptionDidUpdate), name: NSNotification.Name("TranscriberTextChanged"), object: nil)
     }
     
     func setTranscriberLanguage(languageCode: String) {
         currentLanguageCode = languageCode
-        
-        // If we're currently recording, we should stop and restart with the new language
-        let wasRecording = isRecording
-        if wasRecording {
-            stopRecording()
-        }
-        
-        // Update transcriber language
+        let wasRecording: Bool = isRecording
+        if wasRecording {stopRecording()}
         transcriber?.setLanguage(identifier: languageCode)
-        
-        // Restart recording if it was active
-        if wasRecording {
-            startRecording()
-        }
+        if wasRecording {startRecording()}
     }
     
     @objc func transcriptionDidUpdate(_ notification: Notification) {
-        if let text = notification.object as? String {NotificationCenter.default.post(name: Notification.Name("TranscriptionUpdated"), object: text)}
+        if let text: String = notification.object as? String {NotificationCenter.default.post(name: Notification.Name("TranscriptionUpdated"), object: text)}
     }
     
     func startRecording() {
-        guard audioPermissionGranted, let selectedMic = selectedMicrophone else { return }
+        guard audioPermissionGranted, let selectedMic: AVCaptureDevice = selectedMicrophone else { return }
         
-        let session = AVCaptureSession()
+        let session: AVCaptureSession = AVCaptureSession()
         do {
-            let audioInput = try AVCaptureDeviceInput(device: selectedMic)
+            let audioInput: AVCaptureDeviceInput = try AVCaptureDeviceInput(device: selectedMic)
             if session.canAddInput(audioInput) {session.addInput(audioInput)}
             
-            let output = AVCaptureAudioDataOutput()
+            let output: AVCaptureAudioDataOutput = AVCaptureAudioDataOutput()
             output.setSampleBufferDelegate(self, queue: DispatchQueue(label: "audioQueue"))
             if session.canAddOutput(output) {session.addOutput(output)}
 
@@ -125,14 +115,18 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
             self.isRecording = true
         } catch {
             print("Error setting up audio capture: \(error)")
-            // TODO: A Error message box
+            let alert: NSAlert = NSAlert()
+            alert.alertStyle = .critical
+            alert.messageText = "Error setting up audio capture"
+            alert.informativeText = error.localizedDescription
+            alert.runModal()
         }
     }
     
     func setupAudioEngine() {
-        let engine = AVAudioEngine()
-        let inputNode = engine.inputNode
-        let recordingFormat = inputNode.outputFormat(forBus: 0)
+        let engine: AVAudioEngine = AVAudioEngine()
+        let inputNode: AVAudioInputNode = engine.inputNode
+        let recordingFormat: AVAudioFormat = inputNode.outputFormat(forBus: 0)
         
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, time in 
             self.processAudioSamples(buffer)
@@ -143,8 +137,11 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
             try engine.start()
             self.audioEngine = engine
         } catch {
-            print("Error starting audio engine: \(error)")
-            // TODO: A Error message box
+            let alert: NSAlert = NSAlert()
+            alert.alertStyle = .critical
+            alert.messageText = "Error starting audio engine"
+            alert.informativeText = error.localizedDescription
+            alert.runModal()
         }
     }
     
@@ -153,7 +150,6 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
         audioEngine?.stop()
         audioEngine?.inputNode.removeTap(onBus: 0)
         self.isRecording = false
-        
         transcriber?.finishProcessing()
     }
 
@@ -161,22 +157,14 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
         transcriber?.processAudio(sampleBuffer: sampleBuffer)
     }
     
+    // Audio monitoring for waveform animation
     func processAudioSamples(_ buffer: AVAudioPCMBuffer) {
-        guard let channelData = buffer.floatChannelData else { return }
-        
-        let samples = stride(from: 0, to: Int(buffer.frameLength), by: buffer.stride)
-            .map { channelData[0][$0] }
-        
-        let rms = sqrt(samples.reduce(0) { $0 + pow($1, 2) } / Float(buffer.frameLength))
-        let dB = 20 * log10(rms)
-        let normalizedLevel = max(0, min(1, (dB + 60) / 60))
-
-        DispatchQueue.main.async {
-            NotificationCenter.default.post(
-                name: Notification.Name("AudioLevelUpdated"),
-                object: normalizedLevel
-            )
-        }
+        guard let channelData: UnsafePointer<UnsafeMutablePointer<Float>> = buffer.floatChannelData else { return }
+        let samples: [Float] = stride(from: 0, to: Int(buffer.frameLength), by: buffer.stride).map { channelData[0][$0] }
+        let rms: Float = sqrt(samples.reduce(0) { $0 + pow($1, 2) } / Float(buffer.frameLength))
+        let dB: Float = 20 * log10(rms)
+        let normalizedLevel: Float = max(0, min(1, (dB + 60) / 60))
+        DispatchQueue.main.async {NotificationCenter.default.post(name: Notification.Name("AudioLevelUpdated"), object: normalizedLevel)}
     }
 
     func cleanup() {
