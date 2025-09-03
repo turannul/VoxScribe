@@ -14,6 +14,7 @@ import Combine
 class ContentViewModel: ObservableObject {
     @Published var audioManager = AudioManager()
     @Published var languageManager = LanguageManager()
+    @Published var audioPlayer = AudioPlayerManager()
     
     @Published var transcribedText = ""
     @Published var displayText = ""
@@ -41,6 +42,13 @@ class ContentViewModel: ObservableObject {
             .receive(on: RunLoop.main)
             .sink { [weak self] level in
                 self?.updateAudioLevel(level: level)
+            }
+            .store(in: &cancellables)
+
+        audioManager.recordingFinished
+            .receive(on: RunLoop.main)
+            .sink { [weak self] url in
+                self?.saveCurrentRecording(audioURL: url)
             }
             .store(in: &cancellables)
     }
@@ -77,7 +85,6 @@ class ContentViewModel: ObservableObject {
         if audioManager.isRecording {
             audioManager.stopRecording()
             stopTextAnimation()
-            if !transcribedText.isEmpty { saveCurrentRecording() }
         } else {
             resetTranscription()
             audioManager.startRecording()
@@ -146,7 +153,7 @@ class ContentViewModel: ObservableObject {
     #endif
 
     // MARK: - Persistence
-    private func saveCurrentRecording() {
+    private func saveCurrentRecording(audioURL: URL) {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
@@ -157,11 +164,21 @@ class ContentViewModel: ObservableObject {
             date: dateString,
             preview: String(transcribedText.prefix(100)) + (transcribedText.count > 100 ? "..." : ""),
             fullText: transcribedText,
-            languageCode: languageManager.selectedLanguage.code
+            languageCode: languageManager.selectedLanguage.code,
+            audioURL: audioURL
         )
         
         savedRecordings.insert(newRecording, at: 0)
         saveRecordingsToStorage()
+    }
+
+    func playRecording(_ recording: RecordingFile) {
+        guard let url = recording.audioURL else { return }
+        audioPlayer.play(audioURL: url)
+    }
+
+    func stopPlayback() {
+        audioPlayer.stop()
     }
     
     func deleteRecording(_ recording: RecordingFile) {

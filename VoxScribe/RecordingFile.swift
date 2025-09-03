@@ -14,4 +14,5 @@ struct RecordingFile: Identifiable, Codable, Hashable {
     var fullText: String
     var isStarred: Bool = false
     var languageCode: String?
+    var audioURL: URL?
 }

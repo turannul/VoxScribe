@@ -11,6 +11,7 @@ import AVFoundation
 // MARK: - Main App View
 struct VoxScribeAppView: View {
     @StateObject private var viewModel = ContentViewModel()
+    @StateObject private var colorSchemeManager = ColorSchemeManager()
     @State private var selection: RecordingFile? = nil
 
     var body: some View {
@@ -21,6 +22,7 @@ struct VoxScribeAppView: View {
         } detail: {
             DetailView(selection: $selection, viewModel: viewModel)
         }
+        .preferredColorScheme(colorSchemeManager.colorSchemeOption.colorScheme)
     }
 }
 
@@ -28,13 +30,28 @@ struct VoxScribeAppView: View {
 struct SidebarView: View {
     @ObservedObject var viewModel: ContentViewModel
     @Binding var selection: RecordingFile?
+    @State private var isShowingSettings = false
 
     var body: some View {
         VStack {
             if !viewModel.audioManager.audioPermissionGranted {
                 PermissionView(viewModel: viewModel)
             } else {
-                RecordingControlsView(viewModel: viewModel)
+                HStack {
+                    Spacer()
+                    Button(action: { isShowingSettings.toggle() }) {
+                        Image(systemName: "gear")
+                    }
+                    .padding()
+                }
+                Button(viewModel.audioManager.isRecording ? "Stop Recording" : "Start Recording") {
+                    viewModel.toggleRecording()
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(viewModel.audioManager.isRecording ? .red : .green)
+                .foregroundColor(.white)
+                .padding()
+
                 if viewModel.audioManager.isRecording {
                     AudioWaveformView(audioLevels: viewModel.audioLevels)
                         .frame(height: 60)
@@ -45,6 +62,9 @@ struct SidebarView: View {
             RecordingsListView(viewModel: viewModel, selection: $selection)
         }
         .frame(minWidth: 300)
+        .sheet(isPresented: $isShowingSettings) {
+            SettingsView(viewModel: viewModel)
+        }
     }
 }
 
@@ -58,7 +78,7 @@ struct ContentAreaView: View {
             LiveTranscriptionView(viewModel: viewModel)
         } else {
             if let sel = selection {
-                RecordingDetailView(recording: sel, onExport: { viewModel.exportRecording(sel) }, onToggleStar: { viewModel.toggleStar(for: sel) })
+                RecordingDetailView(viewModel: viewModel, recording: sel, onExport: { viewModel.exportRecording(sel) }, onToggleStar: { viewModel.toggleStar(for: sel) })
             } else {
                 Text("Select a recording or start a new one")
                     .foregroundColor(.gray)
@@ -74,7 +94,7 @@ struct DetailView: View {
 
     var body: some View {
         if let sel = selection {
-            RecordingDetailView(recording: sel, onExport: { viewModel.exportRecording(sel) }, onToggleStar: { viewModel.toggleStar(for: sel) })
+            RecordingDetailView(viewModel: viewModel, recording: sel, onExport: { viewModel.exportRecording(sel) }, onToggleStar: { viewModel.toggleStar(for: sel) })
         } else {
             Text("Select a recording")
                 .foregroundColor(.gray)
@@ -100,39 +120,7 @@ struct PermissionView: View {
     }
 }
 
-// MARK: - Recording Controls
-struct RecordingControlsView: View {
-    @ObservedObject var viewModel: ContentViewModel
 
-    var body: some View {
-        VStack {
-            Picker("Select Source", selection: $viewModel.audioManager.selectedMicrophone) {
-                ForEach(viewModel.audioManager.availableMicrophones, id: \.uniqueID) { device in
-                    Text(device.localizedName).tag(device as AVCaptureDevice?)
-                }
-            }.padding()
-
-            Picker("Language", selection: $viewModel.languageManager.selectedLanguage) {
-                ForEach(viewModel.languageManager.availableLanguages, id: \.id) { language in
-                    Text(language.name).tag(language)
-                }
-            }
-            .onChange(of: viewModel.languageManager.selectedLanguage) { newValue in
-                viewModel.audioManager.setTranscriberLanguage(languageCode: newValue.code)
-            }
-            .disabled(viewModel.audioManager.isRecording)
-            .padding()
-
-            Button(viewModel.audioManager.isRecording ? "Stop Recording" : "Start Recording") {
-                viewModel.toggleRecording()
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(viewModel.audioManager.isRecording ? .red : .green)
-            .foregroundColor(.white)
-            .padding()
-        }
-    }
-}
 
 // MARK: - Live Transcription View
 struct LiveTranscriptionView: View {
@@ -156,7 +144,7 @@ struct LiveTranscriptionView: View {
                         if viewModel.audioManager.isRecording {
                             Rectangle()
                                 .frame(width: 2, height: 20)
-                                .foregroundColor(.white)
+                                .foregroundColor(.accentColor)
                                 .opacity(1)
                                 .animation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true), value: true)
                         }
@@ -165,7 +153,9 @@ struct LiveTranscriptionView: View {
                 }
                 .padding()
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(.regularMaterial)
+            .cornerRadius(12)
+            .padding()
 
             HStack {
                 Button("Copy") {
@@ -182,7 +172,6 @@ struct LiveTranscriptionView: View {
             .padding()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black)
     }
 }
 
@@ -214,7 +203,6 @@ struct RecordingsListView: View {
                 }
             }
         }
-        .background(Color.black)
     }
 }
 
@@ -226,39 +214,37 @@ struct RecordingCard: View {
     let onToggleStar: () -> Void
     let onExport: () -> Void
     
-    @State private var isExpanded: Bool = false
     @State private var isHovered: Bool = false
-    
-    private var dateFormatter: DateFormatter {
-        let formatter: DateFormatter = DateFormatter()
-        formatter.dateStyle = .short
-        formatter.timeStyle = .short
-        return formatter
-    }
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                VStack(alignment: .leading) {
-                    Text(recording.date).font(.headline)
-                    Text(isExpanded ? recording.fullText : recording.preview).font(.subheadline).lineLimit(isExpanded ? nil : 2)
+        GroupBox {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    VStack(alignment: .leading) {
+                        Text(recording.date).font(.headline)
+                        Text(recording.preview).font(.subheadline).lineLimit(2)
+                    }
+                    Spacer()
+                    if recording.isStarred {
+                        Image(systemName: "star.fill")
+                            .foregroundColor(.yellow)
+                    }
                 }
-                
-                Spacer()
-                
                 if isHovered {
-                    HStack(spacing: 12) {
-                        Button(action: onToggleStar) {Image(systemName: recording.isStarred ? "star.fill" : "star").foregroundColor(recording.isStarred ? .yellow : .gray)}
-                        Button(action: onExport) {Image(systemName: "square.and.arrow.up").foregroundColor(.blue)}
-                        Button(action: onDelete) {Image(systemName: "trash").foregroundColor(.red)}
-                        if recording.fullText.count > 100 {Button(action: {withAnimation {isExpanded.toggle()}}) {Image(systemName: isExpanded ? "chevron.up" : "chevron.down").foregroundColor(.white)}}
-                    }.transition(.opacity)
+                    HStack {
+                        Spacer()
+                        Button(action: onToggleStar) { Image(systemName: "star").foregroundColor(.yellow) }
+                        Button(action: onExport) { Image(systemName: "square.and.arrow.up").foregroundColor(.blue) }
+                        Button(action: onDelete) { Image(systemName: "trash").foregroundColor(.red) }
+                    }
                 }
             }
         }
-        .padding()
-        .background(RoundedRectangle(cornerRadius: 12).fill(recording.isStarred ? Color.yellow.opacity(0.1) : Color(.darkGray)).overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.gray.opacity(0.2), lineWidth: 1)))
-        .onHover { hovering in withAnimation(.easeInOut(duration: 0.1)) {isHovered = hovering}}
+        .onHover { hovering in
+            withAnimation {
+                isHovered = hovering
+            }
+        }
     }
 }
 
@@ -275,6 +261,7 @@ struct AudioWaveformView: View {
 
 // MARK: - Recording Detail View
 struct RecordingDetailView: View {
+    @ObservedObject var viewModel: ContentViewModel
     let recording: RecordingFile
     let onExport: () -> Void
     let onToggleStar: () -> Void
@@ -302,13 +289,29 @@ struct RecordingDetailView: View {
                 
                 Divider()
                 
+                HStack {
+                    Button(action: { 
+                        if viewModel.audioPlayer.isPlaying {
+                            viewModel.stopPlayback() 
+                        } else {
+                            viewModel.playRecording(recording)
+                        }
+                    }) {
+                        Image(systemName: viewModel.audioPlayer.isPlaying ? "stop.fill" : "play.fill")
+                    }
+                    ProgressView(value: viewModel.audioPlayer.playbackProgress)
+                }
+                .padding()
+
                 Text(recording.fullText)
                     .font(.body)
                     .padding()
             }
             .padding()
         }
-        .background(Color.black)
+        .background(.regularMaterial)
+        .cornerRadius(12)
+        .padding()
         .navigationTitle("Transcription")
     }
 }

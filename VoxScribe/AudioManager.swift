@@ -19,6 +19,7 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
     // Combine subjects for updates
     let transcriptionUpdate = PassthroughSubject<String, Never>()
     let audioLevelUpdate = PassthroughSubject<Float, Never>()
+    let recordingFinished = PassthroughSubject<URL, Never>()
 
     private var captureSession: AVCaptureSession?
     private var audioOutput: AVCaptureAudioDataOutput?
@@ -26,6 +27,7 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
     private var transcriber: Transcriber?
     private var microphoneUpdateTimer: Timer?
     private var currentLanguageCode: String = Locale.current.identifier
+    private var audioFile: AVAudioFile?
     
     override init() {
         super.init()
@@ -115,6 +117,7 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
             self.audioOutput = output
             
             setupAudioEngine()
+            createAudioFile()
             
             session.startRunning()
             try audioEngine?.start()
@@ -155,6 +158,18 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
             #endif
         }
     }
+
+    private func createAudioFile() {
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let audioUrl = documentsPath.appendingPathComponent("\(UUID().uuidString).m4a")
+
+        do {
+            let settings = audioEngine?.inputNode.outputFormat(forBus: 0).settings
+            audioFile = try AVAudioFile(forWriting: audioUrl, settings: settings ?? [:])
+        } catch {
+            print("Error creating audio file: \(error)")
+        }
+    }
     
     func stopRecording() {
         #if os(macOS)
@@ -164,6 +179,11 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
         audioEngine?.stop()
         audioEngine?.inputNode.removeTap(onBus: 0)
         
+        if let audioFile = audioFile {
+            recordingFinished.send(audioFile.url)
+        }
+        audioFile = nil
+
         #if os(iOS)
         do {
             try AVAudioSession.sharedInstance().setActive(false)
@@ -187,6 +207,12 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
         let dB = 20 * log10(rms)
         let normalizedLevel = max(0, min(1, (dB + 60) / 60))
         
+        do {
+            try audioFile?.write(from: buffer)
+        } catch {
+            print("Error writing to audio file: \(error)")
+        }
+
         DispatchQueue.main.async {
             self.audioLevelUpdate.send(normalizedLevel)
         }
