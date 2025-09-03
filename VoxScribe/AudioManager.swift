@@ -8,6 +8,7 @@
 
 import AVFoundation
 import SwiftUI
+import Combine
 
 class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBufferDelegate {
     @Published var isRecording: Bool = false
@@ -15,6 +16,10 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
     @Published var selectedMicrophone: AVCaptureDevice?
     @Published var audioPermissionGranted: Bool = false
     
+    // Combine subjects for updates
+    let transcriptionUpdate = PassthroughSubject<String, Never>()
+    let audioLevelUpdate = PassthroughSubject<Float, Never>()
+
     private var captureSession: AVCaptureSession?
     private var audioOutput: AVCaptureAudioDataOutput?
     private var audioEngine: AVAudioEngine?
@@ -78,7 +83,9 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
     func setupTranscriber() {
         let locale: Locale = Locale(identifier: currentLanguageCode)
         self.transcriber = Transcriber(locale: locale)
-        NotificationCenter.default.addObserver(self, selector: #selector(transcriptionDidUpdate), name: NSNotification.Name("TranscriberTextChanged"), object: nil)
+        self.transcriber?.onTranscriptionUpdate = { [weak self] text in
+            self?.transcriptionUpdate.send(text)
+        }
     }
     
     func setTranscriberLanguage(languageCode: String) {
@@ -87,10 +94,6 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
         if wasRecording {stopRecording()}
         transcriber?.setLanguage(identifier: languageCode)
         if wasRecording {startRecording()}
-    }
-    
-    @objc func transcriptionDidUpdate(_ notification: Notification) {
-        if let text: String = notification.object as? String {NotificationCenter.default.post(name: Notification.Name("TranscriptionUpdated"), object: text)}
     }
     
     func startRecording() {
@@ -178,20 +181,23 @@ class AudioManager: NSObject, ObservableObject, AVCaptureAudioDataOutputSampleBu
     }
     
     func processAudioSamples(_ buffer: AVAudioPCMBuffer) {
-        guard let channelData: UnsafePointer<UnsafeMutablePointer<Float>> = buffer.floatChannelData else { return }
-        let samples: [Float] = stride(from: 0, to: Int(buffer.frameLength), by: buffer.stride).map { channelData[0][$0] }
-        let rms: Float = sqrt(samples.reduce(0) { $0 + pow($1, 2) } / Float(buffer.frameLength))
-        let dB: Float = 20 * log10(rms)
-        let normalizedLevel: Float = max(0, min(1, (dB + 60) / 60))
-        DispatchQueue.main.async {NotificationCenter.default.post(name: Notification.Name("AudioLevelUpdated"), object: normalizedLevel)}
+        guard let channelData = buffer.floatChannelData else { return }
+        let samples = stride(from: 0, to: Int(buffer.frameLength), by: buffer.stride).map { channelData[0][$0] }
+        let rms = sqrt(samples.reduce(0) { $0 + pow($1, 2) } / Float(buffer.frameLength))
+        let dB = 20 * log10(rms)
+        let normalizedLevel = max(0, min(1, (dB + 60) / 60))
+        
+        DispatchQueue.main.async {
+            self.audioLevelUpdate.send(normalizedLevel)
+        }
     }
 
     func cleanup() {
         microphoneUpdateTimer?.invalidate()
         microphoneUpdateTimer = nil
-        NotificationCenter.default.removeObserver(self)
     }
 }
+
 
 // MARK: - Audio Manager iOS Implementation
 extension AudioManager {

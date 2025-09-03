@@ -10,6 +10,8 @@ import Speech
 import SwiftUI
 
 class Transcriber: NSObject {
+    var onTranscriptionUpdate: ((String) -> Void)?
+
     private var speechRecognizer: SFSpeechRecognizer?
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
@@ -19,10 +21,7 @@ class Transcriber: NSObject {
         get { return _transcribedText }
         set {
             _transcribedText = newValue
-            NotificationCenter.default.post(
-                name: NSNotification.Name("TranscriberTextChanged"),
-                object: newValue
-            )
+            onTranscriptionUpdate?(newValue)
         }
     }
     

@@ -17,7 +17,7 @@ struct VoxScribeApp: App {
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            VoxScribeAppView()
             #if os(macOS)
                 .frame(minWidth: 800, minHeight: 600)
             #else
