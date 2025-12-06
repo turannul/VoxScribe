@@ -6,7 +6,37 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		422C41142E68492A0026D7FE /* VoxScribeWatch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 422C41132E68492A0026D7FE /* VoxScribeWatch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		422C41152E68492A0026D7FE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 42E459182D9B311F00672E46 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 422C41122E68492A0026D7FE;
+			remoteInfo = "VoxScribeWatch Watch App";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		422C41212E68492D0026D7FE /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				422C41142E68492A0026D7FE /* VoxScribeWatch Watch App.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		422C410E2E68492A0026D7FE /* VoxScribeWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VoxScribeWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		422C41132E68492A0026D7FE /* VoxScribeWatch Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "VoxScribeWatch Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		42E459202D9B311F00672E46 /* VoxScribe.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VoxScribe.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -21,6 +51,11 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		422C41172E68492A0026D7FE /* VoxScribeWatch Watch App */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "VoxScribeWatch Watch App";
+			sourceTree = "<group>";
+		};
 		42E459222D9B311F00672E46 /* VoxScribe */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -32,6 +67,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		422C41102E68492A0026D7FE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		42E4591D2D9B311F00672E46 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -46,6 +88,7 @@
 			isa = PBXGroup;
 			children = (
 				42E459222D9B311F00672E46 /* VoxScribe */,
+				422C41172E68492A0026D7FE /* VoxScribeWatch Watch App */,
 				42E459212D9B311F00672E46 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -54,6 +97,8 @@
 			isa = PBXGroup;
 			children = (
 				42E459202D9B311F00672E46 /* VoxScribe.app */,
+				422C410E2E68492A0026D7FE /* VoxScribeWatch.app */,
+				422C41132E68492A0026D7FE /* VoxScribeWatch Watch App.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -61,6 +106,47 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		422C410D2E68492A0026D7FE /* VoxScribeWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 422C41222E68492E0026D7FE /* Build configuration list for PBXNativeTarget "VoxScribeWatch" */;
+			buildPhases = (
+				422C410C2E68492A0026D7FE /* Resources */,
+				422C41212E68492D0026D7FE /* Embed Watch Content */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				422C41162E68492A0026D7FE /* PBXTargetDependency */,
+			);
+			name = VoxScribeWatch;
+			packageProductDependencies = (
+			);
+			productName = VoxScribeWatch;
+			productReference = 422C410E2E68492A0026D7FE /* VoxScribeWatch.app */;
+			productType = "com.apple.product-type.application.watchapp2-container";
+		};
+		422C41122E68492A0026D7FE /* VoxScribeWatch Watch App */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 422C411E2E68492D0026D7FE /* Build configuration list for PBXNativeTarget "VoxScribeWatch Watch App" */;
+			buildPhases = (
+				422C410F2E68492A0026D7FE /* Sources */,
+				422C41102E68492A0026D7FE /* Frameworks */,
+				422C41112E68492A0026D7FE /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				422C41172E68492A0026D7FE /* VoxScribeWatch Watch App */,
+			);
+			name = "VoxScribeWatch Watch App";
+			packageProductDependencies = (
+			);
+			productName = "VoxScribeWatch Watch App";
+			productReference = 422C41132E68492A0026D7FE /* VoxScribeWatch Watch App.app */;
+			productType = "com.apple.product-type.application";
+		};
 		42E4591F2D9B311F00672E46 /* VoxScribe */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 42E4592F2D9B312500672E46 /* Build configuration list for PBXNativeTarget "VoxScribe" */;
@@ -90,9 +176,15 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1620;
+				LastSwiftUpdateCheck = 1640;
 				LastUpgradeCheck = 1630;
 				TargetAttributes = {
+					422C410D2E68492A0026D7FE = {
+						CreatedOnToolsVersion = 16.4;
+					};
+					422C41122E68492A0026D7FE = {
+						CreatedOnToolsVersion = 16.4;
+					};
 					42E4591F2D9B311F00672E46 = {
 						CreatedOnToolsVersion = 16.2;
 					};
@@ -113,11 +205,27 @@
 			projectRoot = "";
 			targets = (
 				42E4591F2D9B311F00672E46 /* VoxScribe */,
+				422C410D2E68492A0026D7FE /* VoxScribeWatch */,
+				422C41122E68492A0026D7FE /* VoxScribeWatch Watch App */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		422C410C2E68492A0026D7FE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		422C41112E68492A0026D7FE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		42E4591E2D9B311F00672E46 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -128,6 +236,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		422C410F2E68492A0026D7FE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		42E4591C2D9B311F00672E46 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -137,7 +252,105 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		422C41162E68492A0026D7FE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 422C41122E68492A0026D7FE /* VoxScribeWatch Watch App */;
+			targetProxy = 422C41152E68492A0026D7FE /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		422C411F2E68492D0026D7FE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3KJK45Y626;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = VoxScribeWatch;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKWatchOnly = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = xyz.turannul.VoxScribeWatch.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 11.5;
+			};
+			name = Debug;
+		};
+		422C41202E68492D0026D7FE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3KJK45Y626;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = VoxScribeWatch;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKWatchOnly = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = xyz.turannul.VoxScribeWatch.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 11.5;
+			};
+			name = Release;
+		};
+		422C41232E68492E0026D7FE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3KJK45Y626;
+				INFOPLIST_KEY_CFBundleDisplayName = VoxScribeWatch;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = xyz.turannul.VoxScribeWatch;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		422C41242E68492E0026D7FE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3KJK45Y626;
+				INFOPLIST_KEY_CFBundleDisplayName = VoxScribeWatch;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = xyz.turannul.VoxScribeWatch;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 		42E4592D2D9B312500672E46 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -355,6 +568,24 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		422C411E2E68492D0026D7FE /* Build configuration list for PBXNativeTarget "VoxScribeWatch Watch App" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				422C411F2E68492D0026D7FE /* Debug */,
+				422C41202E68492D0026D7FE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		422C41222E68492E0026D7FE /* Build configuration list for PBXNativeTarget "VoxScribeWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				422C41232E68492E0026D7FE /* Debug */,
+				422C41242E68492E0026D7FE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		42E4591B2D9B311F00672E46 /* Build configuration list for PBXProject "VoxScribe" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
